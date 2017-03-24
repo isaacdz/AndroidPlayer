@@ -119,9 +119,10 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
 
   @Override
   public byte[] executeKeyRequest(UUID uuid, KeyRequest request) throws Exception {
-    String url = request.getDefaultUrl();
+    // WUAKI: ExoPlayer inverse "logic" ... so we were not able to override the license
+    String url = defaultUrl;
     if (TextUtils.isEmpty(url)) {
-      url = defaultUrl;
+      url = request.getDefaultUrl();
     }
     Map<String, String> requestProperties = new HashMap<>();
     requestProperties.put("Content-Type", "application/octet-stream");

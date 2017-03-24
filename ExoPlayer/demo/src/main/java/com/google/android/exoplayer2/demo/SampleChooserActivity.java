@@ -50,15 +50,62 @@ import java.util.UUID;
 
 /**
  * An activity for selecting from a list of samples.
+ * Read JSON locally and from 10.12.96.25
  */
 public class SampleChooserActivity extends Activity {
 
   private static final String TAG = "SampleChooserActivity";
+  private boolean loadData = true;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.sample_chooser_activity);
+    loadInfo();
+    final SampleChooserActivity self = this;
+
+    new WSListener(new WSListener.Reader() {
+      public void read(String txt) throws Exception {
+        JsonReader reader = new JsonReader(new java.io.StringReader(txt));
+        SampleListLoader loaderTask = new SampleListLoader();
+        Sample sample = loaderTask.readEntry(reader, false);
+        startingActivity = true;
+        startActivity(sample.buildIntent(self));
+      }
+    });
+
+  }
+  public String getLocalIpAddress(){
+    try {
+      for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
+           en.hasMoreElements();) {
+        java.net.NetworkInterface intf = en.nextElement();
+        for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+          java.net.InetAddress inetAddress = enumIpAddr.nextElement();
+          if (!inetAddress.isLoopbackAddress()) {
+            String str = inetAddress.getHostAddress();
+            if(str==null || str.length()<=0 || str.contains(":") || !str.contains("."))
+            {
+              // It's a IPV6 address
+              continue;
+            }
+            return str;
+          }
+        }
+      }
+    } catch (Exception ex) {
+      Log.e("IP Address", ex.toString());
+    }
+    return "";
+  }
+
+  private void loadInfo() {
+    if(!loadData)
+    {
+      return;
+    }
+    setTitle(getLocalIpAddress()+" | 0 - Reload JSON");
+    loadData = false;
     Intent intent = getIntent();
     String dataUri = intent.getDataString();
     String[] uris;
@@ -77,13 +124,50 @@ public class SampleChooserActivity extends Activity {
         Toast.makeText(getApplicationContext(), R.string.sample_list_load_error, Toast.LENGTH_LONG)
             .show();
       }
+      uriList.add("http://10.12.96.25/smarttv/json/load.php?f=exoplayer.json&fmt=exo");
       uris = new String[uriList.size()];
       uriList.toArray(uris);
-      Arrays.sort(uris);
+      Arrays.sort(uris,java.util.Collections.reverseOrder());
     }
     SampleListLoader loaderTask = new SampleListLoader();
     loaderTask.execute(uris);
   }
+
+  @Override
+  public boolean onKeyDown(int keyCode, android.view.KeyEvent event)
+  {
+    if (keyCode == android.view.KeyEvent.KEYCODE_0) {
+      loadData = true;
+      loadInfo();
+      return false;
+    }
+    return super.onKeyDown(keyCode, event);
+  }
+
+  @Override
+  protected void onResume()
+  {
+    super.onResume();
+    loadInfo();
+  }
+
+  @Override
+  protected void onStop()
+  {
+    super.onStop();
+    // Next time we'll load data
+    if(!startingActivity) {
+      loadData = true;
+    }
+  }
+
+  @Override
+  protected void onDestroy()
+  {
+    super.onDestroy();
+    loadData = true;
+  }
+
 
   private void onSampleGroups(final List<SampleGroup> groups, boolean sawError) {
     if (sawError) {
@@ -102,7 +186,9 @@ public class SampleChooserActivity extends Activity {
     });
   }
 
+  private boolean startingActivity = false;
   private void onSampleSelected(Sample sample) {
+    startingActivity = true;
     startActivity(sample.buildIntent(this));
   }
 

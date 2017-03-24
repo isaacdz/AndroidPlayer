@@ -46,6 +46,7 @@ android {
 
 dependencies {
     compile project(':library')
+    compile fileTree(dir: '../../JavaWebSocket/dist/', include: '*.jar')
     withExtensionsCompile project(path: ':extension-ffmpeg')
     withExtensionsCompile project(path: ':extension-flac')
     withExtensionsCompile project(path: ':extension-opus')

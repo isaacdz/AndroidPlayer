@@ -343,14 +343,22 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
     }
     HttpMediaDrmCallback drmCallback = new HttpMediaDrmCallback(licenseUrl,
         buildHttpDataSourceFactory(false));
+    // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
+    java.util.HashMap<String, String> optionalKeyRequestParameters = null;
     if (keyRequestPropertiesArray != null) {
       for (int i = 0; i < keyRequestPropertiesArray.length - 1; i += 2) {
+        // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
+        if(keyRequestPropertiesArray[i].equals(DefaultDrmSessionManager.PLAYREADY_CUSTOM_DATA_KEY)) {
+          optionalKeyRequestParameters = new java.util.HashMap<String, String>();
+          optionalKeyRequestParameters.put(keyRequestPropertiesArray[i],keyRequestPropertiesArray[i+1]);
+        }
         drmCallback.setKeyRequestProperty(keyRequestPropertiesArray[i],
             keyRequestPropertiesArray[i + 1]);
       }
     }
     return new DefaultDrmSessionManager<>(uuid,
-        FrameworkMediaDrm.newInstance(uuid), drmCallback, null, mainHandler, eventLogger);
+        // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
+        FrameworkMediaDrm.newInstance(uuid), drmCallback, optionalKeyRequestParameters, mainHandler, eventLogger);
   }
 
   private void releasePlayer() {

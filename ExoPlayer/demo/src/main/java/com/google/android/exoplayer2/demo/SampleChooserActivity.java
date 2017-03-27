@@ -66,20 +66,122 @@ public class SampleChooserActivity extends Activity {
 
     new WSListener(new WSListener.Reader() {
       public void read(String txt) throws Exception {
-        JsonReader reader = new JsonReader(new java.io.StringReader(txt));
-        SampleListLoader loaderTask = new SampleListLoader();
-        Sample sample = loaderTask.readEntry(reader, false);
-        startingActivity = true;
-        startActivity(sample.buildIntent(self));
+        parseJSON(self,txt);
       }
     });
 
   }
+
+  private String castAPIResponses(String txt) throws Exception {
+
+    org.json.JSONObject jsonObj = null;
+    try {
+
+      jsonObj = new org.json.JSONObject(txt);
+
+      org.json.JSONObject parsedJson = new org.json.JSONObject();
+      parsedJson.putOpt("name",jsonObj.optString("key",jsonObj.optString("wrid",null)));
+      parsedJson.putOpt("uri",jsonObj.optString("url",null));
+
+      if(parsedJson.optString("uri",null)==null || parsedJson.optString("uri",null).equals("null")) {
+        throw new Exception("NO URI found");
+      }
+
+      String systemEnc = jsonObj.optString("type");
+      org.json.JSONObject licenseParams = jsonObj.optJSONObject("license");
+      if(licenseParams!=null) {
+        String drm = licenseParams.optString("drm",null);
+        if(drm!=null && drm.length()>0) {
+          systemEnc = drm;
+        }
+      }
+      else {
+        String player = jsonObj.optString("player",null);
+        if(player!=null && player.length()>0) {
+          String[] sp = player.split(":");
+          systemEnc = sp[sp.length-1];
+        }
+      }
+
+      if(systemEnc!=null) {
+        systemEnc = systemEnc.toLowerCase();
+      }
+
+      switch(systemEnc) {
+        case "wvm":
+          parsedJson.putOpt("drm_scheme","widevine");
+          break;
+        case "ss-pr":
+        case "pr":
+        case "mss":
+          parsedJson.putOpt("drm_scheme","playready");
+          break;
+        case "wvc":
+          throw new Exception("DRM scheme ["+systemEnc+"] not handled");
+      }
+
+      String licenseUrl = null;
+      String customData = null;
+      // Kami
+      if(licenseParams!=null) {
+        licenseUrl = licenseParams.optString("url",null);
+        customData = licenseParams.optString("custom_data",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+        if(customData!=null && customData.equals("null")) customData = null;
+      }
+      // Gizmo ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("license_url",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        customData = jsonObj.optString("custom_data",null);
+        if(customData!=null && customData.equals("null")) customData = null;
+      }
+
+      if(licenseUrl!=null && licenseUrl.length()>0) {
+        parsedJson.putOpt("drm_license_url",licenseUrl);
+      }
+      if(customData!=null && customData.length()>0) {
+        // customDataObj
+        org.json.JSONObject customDataObj = new org.json.JSONObject();
+        customDataObj.putOpt("PRCustomData",customData);
+        parsedJson.putOpt("drm_key_request_properties",customDataObj);
+      }
+
+      txt = parsedJson.toString();
+
+    } catch(Exception e) {
+
+      // If the object was previously casted we'll NOT throw the exception and we'll try to play
+      if(jsonObj==null || jsonObj.optString("uri",null)==null) {
+        Log.e(TAG,txt);
+        throw e;
+      }
+
+    }
+
+    return txt;
+  }
+
+  private void parseJSON(SampleChooserActivity self, String txt) throws Exception {
+    String formattedTxt = castAPIResponses(txt);
+    JsonReader reader = new JsonReader(new java.io.StringReader(formattedTxt));
+    SampleListLoader loaderTask = new SampleListLoader();
+    Sample sample = loaderTask.readEntry(reader, false);
+    startingActivity = true;
+    startActivity(sample.buildIntent(self));
+  }
+
   public String getLocalIpAddress(){
+    String ret = "";
     try {
       for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
            en.hasMoreElements();) {
         java.net.NetworkInterface intf = en.nextElement();
+        if(!intf.isUp()) {
+          continue;
+        }
         for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
           java.net.InetAddress inetAddress = enumIpAddr.nextElement();
           if (!inetAddress.isLoopbackAddress()) {
@@ -89,14 +191,19 @@ public class SampleChooserActivity extends Activity {
               // It's a IPV6 address
               continue;
             }
-            return str;
+            if(ret.length()>0) {
+              ret = ret+" "+str;
+            }
+            else {
+              ret = str;
+            }
           }
         }
       }
     } catch (Exception ex) {
       Log.e("IP Address", ex.toString());
     }
-    return "";
+    return ret;
   }
 
   private void loadInfo() {

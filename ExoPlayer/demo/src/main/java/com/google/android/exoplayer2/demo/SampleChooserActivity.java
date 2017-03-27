@@ -168,7 +168,23 @@ public class SampleChooserActivity extends Activity {
     String formattedTxt = castAPIResponses(txt);
     JsonReader reader = new JsonReader(new java.io.StringReader(formattedTxt));
     SampleListLoader loaderTask = new SampleListLoader();
-    Sample sample = loaderTask.readEntry(reader, false);
+    final Sample sample = loaderTask.readEntry(reader, false);
+
+    self.runOnUiThread(new Runnable() {
+      public void run() {
+        new android.os.Handler().postDelayed(
+                new Runnable() {
+                  public void run() {
+                    if (UriSample.class.isInstance(sample)) {
+                      Toast.makeText(getApplicationContext(), ((UriSample)sample).uri, Toast.LENGTH_LONG).show();
+                    }
+                  }
+                },
+                1000);
+      }
+    });
+
+
     startingActivity = true;
     startActivity(sample.buildIntent(self));
   }

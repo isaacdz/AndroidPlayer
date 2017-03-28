@@ -40,6 +40,9 @@ import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
+
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -77,11 +80,24 @@ public class SampleChooserActivity extends Activity {
     org.json.JSONObject jsonObj = null;
     try {
 
-      jsonObj = new org.json.JSONObject(txt);
+      try {
+          jsonObj = new org.json.JSONObject(txt);
+      } catch(Exception e) {
+          // Avoid some socket server situations
+          if(txt.startsWith("\"") && txt.endsWith("\"")) {
+              txt = txt.substring(1,txt.length()-1);
+              txt = txt.replaceAll("\\\\", "");
+              jsonObj = new org.json.JSONObject(txt);
+          }
+          else {
+              // Rethrow the error
+              throw e;
+          }
+      }
 
       org.json.JSONObject parsedJson = new org.json.JSONObject();
-      parsedJson.putOpt("name",jsonObj.optString("key",jsonObj.optString("wrid",null)));
-      parsedJson.putOpt("uri",jsonObj.optString("url",null));
+      parsedJson.putOpt("name",jsonObj.optString("key",jsonObj.optString("wrid",jsonObj.optString("title",null))));
+      parsedJson.putOpt("uri",jsonObj.optString("url",jsonObj.optString("uri",null)));
 
       if(parsedJson.optString("uri",null)==null || parsedJson.optString("uri",null).equals("null")) {
         throw new Exception("NO URI found");
@@ -109,10 +125,12 @@ public class SampleChooserActivity extends Activity {
 
       switch(systemEnc) {
         case "wvm":
+        case "widevine":
           parsedJson.putOpt("drm_scheme","widevine");
           break;
         case "ss-pr":
         case "pr":
+        case "playready":
         case "mss":
           parsedJson.putOpt("drm_scheme","playready");
           break;
@@ -137,6 +155,30 @@ public class SampleChooserActivity extends Activity {
       if(customData==null ||customData.length()==0) {
         customData = jsonObj.optString("custom_data",null);
         if(customData!=null && customData.equals("null")) customData = null;
+      }
+      // JS ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("license",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        JSONObject params = jsonObj.optJSONObject("params");
+        if(params!=null) {
+          customData = params.optString("customData",null);
+          if(customData!=null && customData.equals("null")) customData = null;
+        }
+      }
+      // ExoFormat ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("drm_license_url",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        JSONObject params = jsonObj.optJSONObject("drm_key_request_properties");
+        if(params!=null) {
+          customData = params.optString("PRCustomData",null);
+          if(customData!=null && customData.equals("null")) customData = null;
+        }
       }
 
       if(licenseUrl!=null && licenseUrl.length()>0) {

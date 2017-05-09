@@ -135,6 +135,7 @@ public class SampleChooserActivity extends Activity {
           parsedJson.putOpt("drm_scheme","playready");
           break;
         case "wvc":
+        case "wvn":
           throw new Exception("DRM scheme ["+systemEnc+"] not handled");
       }
 

@@ -3,7 +3,7 @@
 Use ExoPlayer to do your tests
 If you need you can modify JavaWebSocket or pull changes from the original repo
 
-**ExoPlayer and Java-WebSocket dependencies**
+**ExoPlayer Java-WebSocket and NanoHttpd dependencies**
 ```
 # Download ExoPlayer v2
 git remote add -f ExoPlayer https://github.com/google/ExoPlayer.git
@@ -23,7 +23,7 @@ git commit -m "Merge JavaWebSocket/master as our JavaWebSocket subdirectory"
 git pull -s subtree JavaWebSocket master
 ```
 ```
-# Download NanoHTTPD
+# Download NanoHttpd
 git remote add -f nanohttpd https://github.com/NanoHttpd/nanohttpd.git
 git merge -s ours --no-commit nanohttpd/master
 git read-tree --prefix=nanohttpd/ -u nanohttpd/master

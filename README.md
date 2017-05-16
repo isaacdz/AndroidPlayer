@@ -3,7 +3,7 @@
 Use ExoPlayer to do your tests
 If you need you can modify JavaWebSocket or pull changes from the original repo
 
-**ExoPlayer Java-WebSocket and NanoHttpd dependencies**
+**ExoPlayer + Java-WebSocket + NanoHttpd dependencies**
 ```
 # Download ExoPlayer v2
 git remote add -f ExoPlayer https://github.com/google/ExoPlayer.git

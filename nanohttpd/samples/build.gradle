@@ -1,0 +1,6 @@
+
+description = 'NanoHttpd-Samples'
+dependencies {
+  compile project(':nanohttpd')
+  compile project(':nanohttpd-webserver')
+}

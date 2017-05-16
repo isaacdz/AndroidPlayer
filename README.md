@@ -22,4 +22,16 @@ git commit -m "Merge JavaWebSocket/master as our JavaWebSocket subdirectory"
 # Update Java-WebSocket master
 git pull -s subtree JavaWebSocket master
 ```
-
+```
+# Download NanoHTTPD
+git remote add -f nanohttpd https://github.com/NanoHttpd/nanohttpd.git
+git merge -s ours --no-commit nanohttpd/master
+git read-tree --prefix=nanohttpd/ -u nanohttpd/master
+git commit -m "Merge nanohttpd/master as our nanohttpd subdirectory"
+# Update Java-WebSocket master
+git pull -s subtree nanohttpd master
+# Make 
+cd nanohttpd
+gradle init
+gradle build
+```

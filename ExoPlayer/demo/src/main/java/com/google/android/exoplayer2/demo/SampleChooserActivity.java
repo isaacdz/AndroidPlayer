@@ -67,6 +67,14 @@ public class SampleChooserActivity extends Activity {
     loadInfo();
     final SampleChooserActivity self = this;
 
+    try {
+      new HTTPListener(this.getApplicationContext(),new WSListener.Reader() {
+        public void read(String txt) throws Exception {
+          parseJSON(self,txt);
+        }
+      });
+    } catch(Exception e) {
+    }
     new WSListener(new WSListener.Reader() {
       public void read(String txt) throws Exception {
         parseJSON(self,txt);

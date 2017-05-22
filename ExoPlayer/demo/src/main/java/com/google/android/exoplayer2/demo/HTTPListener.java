@@ -53,7 +53,7 @@ public class HTTPListener extends NanoHTTPD {
 
         // makeSecure(NanoHTTPD.makeSSLSocketFactory("keystore.jks", "123456789".toCharArray()), null);
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-        System.out.println("\nRunning! Point your browsers to http://localhost:8080/ \n");
+        System.out.println("\nRunning! Point your browsers to https://localhost:9443/ \n");
     }
 
     @Override

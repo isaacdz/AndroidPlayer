@@ -46,6 +46,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -200,6 +201,10 @@ public class SampleChooserActivity extends Activity {
         parsedJson.putOpt("drm_key_request_properties",customDataObj);
       }
 
+      if(parsedJson.optString("uri",null).indexOf(".mpd")>0) {
+        parsedJson.putOpt("extension","mpd");
+      }
+
       txt = parsedJson.toString();
 
     } catch(Exception e) {
@@ -240,29 +245,37 @@ public class SampleChooserActivity extends Activity {
     startActivity(sample.buildIntent(self));
   }
 
-  public String getLocalIpAddress(){
+  public String getLocalIpAddress(boolean checkIsUp){
     String ret = "";
+    String suffix = "";
     try {
+
       for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
-           en.hasMoreElements();) {
+           en.hasMoreElements(); ) {
         java.net.NetworkInterface intf = en.nextElement();
-        if(!intf.isUp()) {
+        Boolean isUp;
+        try {
+          isUp = !intf.isUp();
+        } catch(SocketException e) {
+          isUp = false;
+        }
+        if (checkIsUp && !isUp) {
           continue;
         }
-        for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+        for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
           java.net.InetAddress inetAddress = enumIpAddr.nextElement();
           if (!inetAddress.isLoopbackAddress()) {
             String str = inetAddress.getHostAddress();
-            if(str==null || str.length()<=0 || str.contains(":") || !str.contains("."))
-            {
+            if (str == null || str.length() <= 0 || str.contains(":") || !str.contains(".")) {
               // It's a IPV6 address
               continue;
             }
-            if(ret.length()>0) {
-              ret = ret+" "+str;
-            }
-            else {
+            if (ret.length() > 0) {
+              ret = ret + " " + str;
+            } else {
               ret = str;
+              // Only 1 suffix
+              suffix = " https://" + str + ":9443/";
             }
           }
         }
@@ -270,7 +283,18 @@ public class SampleChooserActivity extends Activity {
     } catch (Exception ex) {
       Log.e("IP Address", ex.toString());
     }
-    return ret;
+
+    if(checkIsUp==true) {
+      android.net.ConnectivityManager connectivityManager
+              = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+      android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+      if (activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting()) {
+        // Check again but without using isUp
+        return getLocalIpAddress(false);
+      }
+    }
+
+    return ret+suffix;
   }
 
   private void loadInfo() {
@@ -278,7 +302,7 @@ public class SampleChooserActivity extends Activity {
     {
       return;
     }
-    setTitle(getLocalIpAddress()+" | 0 - Reload JSON");
+    setTitle(getLocalIpAddress(true)+" | 0 - Reload JSON");
     loadData = false;
     Intent intent = getIntent();
     String dataUri = intent.getDataString();

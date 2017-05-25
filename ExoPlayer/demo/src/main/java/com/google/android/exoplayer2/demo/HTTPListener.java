@@ -29,9 +29,14 @@ public class HTTPListener extends NanoHTTPD {
 
     protected WSListener.Reader theReader = null;
 
-    public HTTPListener(Context context, WSListener.Reader r) throws IOException {
-        super(9443);
+    private static final int PORT = 9443;
+    private static boolean SECURE = false;
+    private static SampleChooserActivity theActivity = null;
 
+    public HTTPListener(SampleChooserActivity activity, Context context, WSListener.Reader r) throws IOException {
+        super(HTTPListener.PORT);
+
+        this.theActivity = activity;
         this.theReader = r;
         try {
             char[] passphrase = "123456789".toCharArray();
@@ -44,6 +49,7 @@ public class HTTPListener extends NanoHTTPD {
                 KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                 keyManagerFactory.init(e, passphrase);
                 SSLServerSocketFactory factory = NanoHTTPD.makeSSLSocketFactory(e, keyManagerFactory);
+                HTTPListener.SECURE = true;
                 makeSecure(factory, null);
             }
         } catch (Exception ex) {
@@ -53,7 +59,13 @@ public class HTTPListener extends NanoHTTPD {
 
         // makeSecure(NanoHTTPD.makeSSLSocketFactory("keystore.jks", "123456789".toCharArray()), null);
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-        System.out.println("\nRunning! Point your browsers to https://localhost:9443/ \n");
+        System.out.println("\nRunning! Point your browsers to "+this.getBaseURL("localhost")+"\n");
+    }
+
+    public static String getBaseURL(String ip) {
+        String ret = "http"+(HTTPListener.SECURE?"s":"")+"://"+ip+":"+HTTPListener.PORT+"/";
+        android.util.Log.v("ADF","ADF "+ret);
+        return ret;
     }
 
     @Override
@@ -76,7 +88,7 @@ public class HTTPListener extends NanoHTTPD {
                 return getResponse(Status.OK,"EX:"+e);
             }
         }
-        return getResponse(Status.OK,"OK");
+        return getResponse(Status.OK,this.theActivity.getLocalIpAddress(false, true));
     }
 
     private Response getResponse(IStatus status, String ret) {

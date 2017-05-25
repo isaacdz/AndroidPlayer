@@ -65,17 +65,19 @@ public class SampleChooserActivity extends Activity {
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.sample_chooser_activity);
-    loadInfo();
     final SampleChooserActivity self = this;
 
     try {
-      new HTTPListener(this.getApplicationContext(),new WSListener.Reader() {
+      new HTTPListener(this, this.getApplicationContext(),new WSListener.Reader() {
         public void read(String txt) throws Exception {
           parseJSON(self,txt);
         }
       });
     } catch(Exception e) {
     }
+
+    loadInfo();
+
     new WSListener(new WSListener.Reader() {
       public void read(String txt) throws Exception {
         parseJSON(self,txt);
@@ -245,7 +247,7 @@ public class SampleChooserActivity extends Activity {
     startActivity(sample.buildIntent(self));
   }
 
-  public String getLocalIpAddress(boolean checkIsUp){
+  public String getLocalIpAddress(boolean checkIsUp, boolean onlyIP){
     String ret = "";
     String suffix = "";
     try {
@@ -275,7 +277,9 @@ public class SampleChooserActivity extends Activity {
             } else {
               ret = str;
               // Only 1 suffix
-              suffix = " https://" + str + ":9443/";
+              if(onlyIP == false) {
+                suffix = " "+HTTPListener.getBaseURL(str);
+              }
             }
           }
         }
@@ -290,7 +294,7 @@ public class SampleChooserActivity extends Activity {
       android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
       if (activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting()) {
         // Check again but without using isUp
-        return getLocalIpAddress(false);
+        return getLocalIpAddress(false, onlyIP);
       }
     }
 
@@ -302,7 +306,7 @@ public class SampleChooserActivity extends Activity {
     {
       return;
     }
-    setTitle(getLocalIpAddress(true)+" | 0 - Reload JSON");
+    setTitle(getLocalIpAddress(true, false)+" | 0 - Reload JSON");
     loadData = false;
     Intent intent = getIntent();
     String dataUri = intent.getDataString();

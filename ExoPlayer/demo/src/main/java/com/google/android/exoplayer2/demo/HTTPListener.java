@@ -29,28 +29,31 @@ public class HTTPListener extends NanoHTTPD {
 
     protected WSListener.Reader theReader = null;
 
-    private static final int PORT = 9443;
+    private static final int SSL_PORT = 9441;
+    private static final int PORT = 9440;
     private static boolean SECURE = false;
     private static SampleChooserActivity theActivity = null;
 
-    public HTTPListener(SampleChooserActivity activity, Context context, WSListener.Reader r) throws IOException {
-        super(HTTPListener.PORT);
+    public HTTPListener(SampleChooserActivity activity, Context context, WSListener.Reader r, boolean secure) throws IOException {
+        super(secure?HTTPListener.SSL_PORT:HTTPListener.PORT);
 
         this.theActivity = activity;
         this.theReader = r;
         try {
-            char[] passphrase = "123456789".toCharArray();
-            KeyStore e = KeyStore.getInstance(KeyStore.getDefaultType());
-            ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-            InputStream keystoreStream = classloader.getResourceAsStream("keystore.jks");
-            System.setProperty("javax.net.ssl.trustStore", classloader.getResource("keystore.jks").getPath());
-            if(keystoreStream != null) {
-                e.load(keystoreStream, passphrase);
-                KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                keyManagerFactory.init(e, passphrase);
-                SSLServerSocketFactory factory = NanoHTTPD.makeSSLSocketFactory(e, keyManagerFactory);
-                HTTPListener.SECURE = true;
-                makeSecure(factory, null);
+            if(secure) {
+                char[] passphrase = "123456789".toCharArray();
+                KeyStore e = KeyStore.getInstance(KeyStore.getDefaultType());
+                ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+                InputStream keystoreStream = classloader.getResourceAsStream("keystore.jks");
+                System.setProperty("javax.net.ssl.trustStore", classloader.getResource("keystore.jks").getPath());
+                if (keystoreStream != null) {
+                    e.load(keystoreStream, passphrase);
+                    KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    keyManagerFactory.init(e, passphrase);
+                    SSLServerSocketFactory factory = NanoHTTPD.makeSSLSocketFactory(e, keyManagerFactory);
+                    HTTPListener.SECURE = true;
+                    makeSecure(factory, null);
+                }
             }
         } catch (Exception ex) {
             android.util.Log.v("ADF","ADF "+ex);
@@ -60,10 +63,14 @@ public class HTTPListener extends NanoHTTPD {
         // makeSecure(NanoHTTPD.makeSSLSocketFactory("keystore.jks", "123456789".toCharArray()), null);
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
         System.out.println("\nRunning! Point your browsers to "+this.getBaseURL("localhost")+"\n");
+
+        if(secure==true) {
+            new HTTPListener(activity, context, r, false);
+        }
     }
 
     public static String getBaseURL(String ip) {
-        String ret = "http"+(HTTPListener.SECURE?"s":"")+"://"+ip+":"+HTTPListener.PORT+"/";
+        String ret = "http"+(HTTPListener.SECURE?"s":"")+"://"+ip+":"+HTTPListener.SSL_PORT+"/";
         android.util.Log.v("ADF","ADF "+ret);
         return ret;
     }

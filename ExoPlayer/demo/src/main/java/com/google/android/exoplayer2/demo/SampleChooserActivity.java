@@ -72,7 +72,7 @@ public class SampleChooserActivity extends Activity {
         public void read(String txt) throws Exception {
           parseJSON(self,txt);
         }
-      });
+      },true);
     } catch(Exception e) {
     }
 

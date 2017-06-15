@@ -14,14 +14,20 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'config'
+            keyPassword '123456789'
+            storeFile file('config')
+            storePassword '123456789'
+        }
+    }
     compileSdkVersion project.ext.compileSdkVersion
     buildToolsVersion project.ext.buildToolsVersion
-
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion project.ext.targetSdkVersion
     }
-
     buildTypes {
         release {
             shrinkResources true
@@ -32,12 +38,10 @@ android {
             jniDebuggable = true
         }
     }
-
     lintOptions {
         // The demo app does not have translations.
         disable 'MissingTranslation'
     }
-
     productFlavors {
         noExtensions
         withExtensions
@@ -46,8 +50,8 @@ android {
 
 dependencies {
     compile project(':library')
-    compile fileTree(dir: '../../JavaWebSocket/dist/', include: '*.jar')
-    compile fileTree(dir: '../../nanohttpd/core/build/libs/', include: '*.jar')
+    compile fileTree(include: '*.jar', dir: '../../JavaWebSocket/dist/')
+    compile fileTree(include: '*.jar', dir: '../../nanohttpd/core/build/libs/')
     // compile project(':library-core')
     // compile project(':library-dash')
     // compile project(':library-hls')

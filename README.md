@@ -35,3 +35,31 @@ cd nanohttpd
 gradle init
 gradle build
 ```
+
+----------
+
+Create apk
+----------
+
+ - Open Android Visual Studio
+ - Open the ExoPlayer project and build the demo
+
+----------
+
+Installing/reinstalling
+----------
+
+ - connect the device in adb mode ( adb connect IP:5555 )
+ - adb uninstall com.google.android.exoplayer2.demo
+ - adb install ./ExoPlayer/demo/exoPlayback.apk
+ 
+----------
+
+Running from adb
+----------
+
+ - adb shell am kill com.google.android.exoplayer2.demo
+ - adb shell am start -n com.google.android.exoplayer2.demo/com.google.android.exoplayer2.demo.SampleChooserActivity 
+ 
+
+    

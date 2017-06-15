@@ -207,6 +207,14 @@ public class SampleChooserActivity extends Activity {
         parsedJson.putOpt("extension","mpd");
       }
 
+      JSONObject subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL);
+      if(subtitle!=null) {
+        String subtitleUrl = subtitle.optString("url",null);
+        if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
+          parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
+        }
+      }
+
       txt = parsedJson.toString();
 
     } catch(Exception e) {
@@ -467,6 +475,7 @@ public class SampleChooserActivity extends Activity {
       String sampleName = null;
       String uri = null;
       String extension = null;
+      String subtitle = null;
       UUID drmUuid = null;
       String drmLicenseUrl = null;
       String[] drmKeyRequestProperties = null;
@@ -482,6 +491,9 @@ public class SampleChooserActivity extends Activity {
             break;
           case "uri":
             uri = reader.nextString();
+            break;
+          case "subtitle":
+            subtitle = reader.nextString();
             break;
           case "extension":
             extension = reader.nextString();
@@ -534,7 +546,7 @@ public class SampleChooserActivity extends Activity {
             preferExtensionDecoders, playlistSamplesArray);
       } else {
         return new UriSample(sampleName, drmUuid, drmLicenseUrl, drmKeyRequestProperties,
-            preferExtensionDecoders, uri, extension);
+            preferExtensionDecoders, uri, extension, subtitle);
       }
     }
 
@@ -690,20 +702,23 @@ public class SampleChooserActivity extends Activity {
 
     public final String uri;
     public final String extension;
+    public final String subtitle;
 
     public UriSample(String name, UUID drmSchemeUuid, String drmLicenseUrl,
         String[] drmKeyRequestProperties, boolean preferExtensionDecoders, String uri,
-        String extension) {
+        String extension, String subtitle) {
       super(name, drmSchemeUuid, drmLicenseUrl, drmKeyRequestProperties, preferExtensionDecoders);
       this.uri = uri;
       this.extension = extension;
+      this.subtitle = subtitle;
     }
 
     @Override
     public Intent buildIntent(Context context) {
       return super.buildIntent(context)
           .setData(Uri.parse(uri))
-          .putExtra(PlayerActivity.EXTENSION_EXTRA, extension)
+              .putExtra(PlayerActivity.EXTENSION_EXTRA, extension)
+              .putExtra(PlayerActivity.SUBTITLES_URL, subtitle)
           .setAction(PlayerActivity.ACTION_VIEW);
     }
 
@@ -730,7 +745,7 @@ public class SampleChooserActivity extends Activity {
       }
       return super.buildIntent(context)
           .putExtra(PlayerActivity.URI_LIST_EXTRA, uris)
-          .putExtra(PlayerActivity.EXTENSION_LIST_EXTRA, extensions)
+              .putExtra(PlayerActivity.EXTENSION_LIST_EXTRA, extensions)
           .setAction(PlayerActivity.ACTION_VIEW_LIST);
     }
 

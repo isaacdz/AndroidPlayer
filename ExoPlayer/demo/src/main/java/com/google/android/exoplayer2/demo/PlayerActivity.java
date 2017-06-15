@@ -35,6 +35,7 @@ import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
@@ -51,6 +52,8 @@ import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.MergingMediaSource;
+import com.google.android.exoplayer2.source.SingleSampleMediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
@@ -68,6 +71,7 @@ import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
+import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.Util;
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -82,6 +86,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
 
   public static final String DRM_SCHEME_UUID_EXTRA = "drm_scheme_uuid";
   public static final String DRM_LICENSE_URL = "drm_license_url";
+  public static final String SUBTITLES_URL = "subtitle";
   public static final String DRM_KEY_REQUEST_PROPERTIES = "drm_key_request_properties";
   public static final String PREFER_EXTENSION_DECODERS = "prefer_extension_decoders";
 
@@ -309,7 +314,9 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       MediaSource[] mediaSources = new MediaSource[uris.length];
       for (int i = 0; i < uris.length; i++) {
         mediaSources[i] = buildMediaSource(uris[i], extensions[i]);
+        mediaSources[i] = appendSubtitles(mediaSources[i], intent);
       }
+
       MediaSource mediaSource = mediaSources.length == 1 ? mediaSources[0]
           : new ConcatenatingMediaSource(mediaSources);
       boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
@@ -320,6 +327,18 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       needRetrySource = false;
       updateButtonVisibilities();
     }
+  }
+
+  private MediaSource appendSubtitles(MediaSource mediaSource, Intent intent) {
+    String url = intent.getStringExtra(SUBTITLES_URL);
+    if (url != null && url.length() > 0) {
+      String mimeType = url.indexOf(".srt") > 0 ? MimeTypes.APPLICATION_SUBRIP : MimeTypes.TEXT_VTT;
+      Uri srtUri = Uri.parse(url);
+      Format textFormat = Format.createTextSampleFormat( null, mimeType, null, Format.NO_VALUE, Format.NO_VALUE, "subt", null);
+      MediaSource textMediaSource = new SingleSampleMediaSource(srtUri, mediaDataSourceFactory, textFormat, C.TIME_UNSET);
+      return new MergingMediaSource(mediaSource, textMediaSource);
+    }
+    return mediaSource;
   }
 
   private MediaSource buildMediaSource(Uri uri, String overrideExtension) {
@@ -356,7 +375,7 @@ public class PlayerActivity extends Activity implements OnClickListener, ExoPlay
       for (int i = 0; i < keyRequestPropertiesArray.length - 1; i += 2) {
         // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
         if(keyRequestPropertiesArray[i].equals(DefaultDrmSessionManager.PLAYREADY_CUSTOM_DATA_KEY)) {
-          optionalKeyRequestParameters = new java.util.HashMap<String, String>();
+          optionalKeyRequestParameters = new java.util.HashMap<>();
           optionalKeyRequestParameters.put(keyRequestPropertiesArray[i],keyRequestPropertiesArray[i+1]);
         }
         drmCallback.setKeyRequestProperty(keyRequestPropertiesArray[i],

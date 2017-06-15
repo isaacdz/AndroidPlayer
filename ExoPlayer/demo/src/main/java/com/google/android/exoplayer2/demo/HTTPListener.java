@@ -85,7 +85,7 @@ public class HTTPListener extends NanoHTTPD {
             try {
                 theReader.read(message);
             } catch(Exception e) {
-                return getResponse(Status.OK,"EX:"+e);
+                return getResponse(Status.INTERNAL_ERROR,"EX:"+e);
             }
         }
         return getResponse(Status.OK,this.theActivity.getLocalIpAddress(false, true));

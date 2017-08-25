@@ -1,4 +1,38 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket.drafts;
+
+import org.java_websocket.WebSocketImpl;
+import org.java_websocket.exceptions.*;
+import org.java_websocket.framing.CloseFrame;
+import org.java_websocket.framing.Framedata;
+import org.java_websocket.framing.Framedata.Opcode;
+import org.java_websocket.framing.TextFrame;
+import org.java_websocket.handshake.*;
+import org.java_websocket.util.Charsetfunctions;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -6,43 +40,29 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-import org.java_websocket.exceptions.InvalidDataException;
-import org.java_websocket.exceptions.InvalidFrameException;
-import org.java_websocket.exceptions.InvalidHandshakeException;
-import org.java_websocket.exceptions.LimitExedeedException;
-import org.java_websocket.exceptions.NotSendableException;
-import org.java_websocket.framing.CloseFrame;
-import org.java_websocket.framing.FrameBuilder;
-import org.java_websocket.framing.Framedata;
-import org.java_websocket.framing.Framedata.Opcode;
-import org.java_websocket.framing.FramedataImpl1;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.handshake.ClientHandshakeBuilder;
-import org.java_websocket.handshake.HandshakeBuilder;
-import org.java_websocket.handshake.ServerHandshake;
-import org.java_websocket.handshake.ServerHandshakeBuilder;
-import org.java_websocket.util.Charsetfunctions;
-
+@Deprecated
 public class Draft_75 extends Draft {
 
 	/**
 	 * The byte representing CR, or Carriage Return, or \r
 	 */
-	public static final byte CR = (byte) 0x0D;
+	public static final byte CR = ( byte ) 0x0D;
 	/**
 	 * The byte representing LF, or Line Feed, or \n
 	 */
-	public static final byte LF = (byte) 0x0A;
+	public static final byte LF = ( byte ) 0x0A;
 	/**
 	 * The byte representing the beginning of a WebSocket text frame.
 	 */
-	public static final byte START_OF_FRAME = (byte) 0x00;
+	public static final byte START_OF_FRAME = ( byte ) 0x00;
 	/**
 	 * The byte representing the end of a WebSocket text frame.
 	 */
-	public static final byte END_OF_FRAME = (byte) 0xFF;
+	public static final byte END_OF_FRAME = ( byte ) 0xFF;
 
-	/** Is only used to detect protocol violations */
+	/**
+	 * Is only used to detect protocol violations
+	 */
 	protected boolean readingState = false;
 
 	protected List<Framedata> readyframes = new LinkedList<Framedata>();
@@ -87,16 +107,19 @@ public class Draft_75 extends Draft {
 
 	@Override
 	public List<Framedata> createFrames( String text, boolean mask ) {
-		FrameBuilder frame = new FramedataImpl1();
+		TextFrame frame = new TextFrame();
+		frame.setPayload( ByteBuffer.wrap( Charsetfunctions.utf8Bytes( text ) ) );
+		frame.setTransferemasked( mask );
 		try {
-			frame.setPayload( ByteBuffer.wrap( Charsetfunctions.utf8Bytes( text ) ) );
+			frame.isValid();
 		} catch ( InvalidDataException e ) {
 			throw new NotSendableException( e );
 		}
-		frame.setFin( true );
-		frame.setOptcode( Opcode.TEXT );
-		frame.setTransferemasked( mask );
-		return Collections.singletonList( (Framedata) frame );
+		return Collections.singletonList( ( Framedata ) frame );
+	}
+
+	public void processFrame( WebSocketImpl webSocketImpl, Framedata frame ) throws InvalidDataException {
+		throw new UnsupportedOperationException( "This draft is not supported any more. Please use Draft_6455." );
 	}
 
 	@Override
@@ -124,7 +147,7 @@ public class Draft_75 extends Draft {
 
 	protected List<Framedata> translateRegularFrame( ByteBuffer buffer ) throws InvalidDataException {
 
-		while ( buffer.hasRemaining() ) {
+		while( buffer.hasRemaining() ) {
 			byte newestByte = buffer.get();
 			if( newestByte == START_OF_FRAME ) { // Beginning of Frame
 				if( readingState )
@@ -137,10 +160,8 @@ public class Draft_75 extends Draft {
 				// START_OF_FRAME, thus we will send 'null' as the sent message.
 				if( this.currentFrame != null ) {
 					currentFrame.flip();
-					FramedataImpl1 curframe = new FramedataImpl1();
+					TextFrame curframe = new TextFrame();
 					curframe.setPayload( currentFrame );
-					curframe.setFin( true );
-					curframe.setOptcode( Opcode.TEXT );
 					readyframes.add( curframe );
 					this.currentFrame = null;
 					buffer.mark();
@@ -192,7 +213,7 @@ public class Draft_75 extends Draft {
 		return ByteBuffer.allocate( INITIAL_FAMESIZE );
 	}
 
-	public ByteBuffer increaseBuffer( ByteBuffer full ) throws LimitExedeedException , InvalidDataException {
+	public ByteBuffer increaseBuffer( ByteBuffer full ) throws LimitExedeedException, InvalidDataException {
 		full.flip();
 		ByteBuffer newbuffer = ByteBuffer.allocate( checkAlloc( full.capacity() * 2 ) );
 		newbuffer.put( full );

@@ -1,6 +1,8 @@
-[![Build Status](https://travis-ci.org/marci4/Java-WebSocket-Dev.svg?branch=master)](https://travis-ci.org/ck1125/Java-WebSocket)
 Java WebSockets
 ===============
+[![Build Status](https://travis-ci.org/marci4/Java-WebSocket-Dev.svg?branch=master)](https://travis-ci.org/marci4/Java-WebSocket-Dev)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.java-websocket/Java-WebSocket/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.java-websocket/Java-WebSocket)
+[![Javadocs](https://www.javadoc.io/badge/org.java-websocket/Java-WebSocket.svg)](https://www.javadoc.io/doc/org.java-websocket/Java-WebSocket)
 
 This repository contains a barebones WebSocket server and client implementation
 written in 100% Java. The underlying classes are implemented `java.nio`, which allows for a
@@ -10,6 +12,9 @@ non-blocking event-driven model (similar to the
 Implemented WebSocket protocol versions are:
 
  * [RFC 6455](http://tools.ietf.org/html/rfc6455)
+ 
+Implemented, but deprecated, WebSocket protocol versions are:
+
  * [Hybi 17](http://tools.ietf.org/id/draft-ietf-hybi-thewebsocketprotocol-17.txt)
  * [Hybi 10](http://tools.ietf.org/id/draft-ietf-hybi-thewebsocketprotocol-10.txt)
  * [Hixie 76](http://tools.ietf.org/id/draft-hixie-thewebsocketprotocol-76.txt)
@@ -19,7 +24,7 @@ Implemented WebSocket protocol versions are:
 
 
 ## Build
-You can build using Ant but there is nothing against just putting the source path ```src/main/java ``` on your applications buildpath.
+You can build using Ant, Maven, Gradle or Leiningen but there is nothing against just putting the source path ```src/main/java ``` on your applications buildpath.
 
 ### Ant
 
@@ -30,6 +35,33 @@ ant
 will create the javadoc of this library at ```doc/``` and build the library itself: ```dist/java_websocket.jar```
 
 The ant targets are: ```compile```, ```jar```, ```doc``` and ```clean```
+
+### Maven
+To use maven add this dependency to your pom.xml:
+```xml
+<dependency>
+  <groupId>org.java-websocket</groupId>
+  <artifactId>Java-WebSocket</artifactId>
+  <version>1.3.4</version>
+</dependency>
+```
+
+### Gradle
+To use Gradle add the maven central repository to your repositories list :
+```xml
+mavenCentral()
+```
+Then you can just add the latest version to your build.
+```xml
+compile "org.java-websocket:Java-WebSocket:1.3.4"
+```
+
+
+### Leiningen
+
+``` bash
+[org.java-websocket/java-websocket "1.3.4"]
+```
 
 Running the Examples
 -------------------
@@ -135,14 +167,6 @@ if ("google_sdk".equals( Build.PRODUCT )) {
   // ... disable IPv6
 }
 ```
-
-
-Getting Support
----------------
-
-If you are looking for help using `Java-WebSocket` you might want to check out the
-[#java-websocket](http://webchat.freenode.net/?channels=java-websocket) IRC room
-on the FreeNode IRC network. 
 
 
 License

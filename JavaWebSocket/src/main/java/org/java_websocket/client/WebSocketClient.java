@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket.client;
 
 import java.io.IOException;
@@ -9,14 +34,20 @@ import java.net.Socket;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.NotYetConnectedException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSocketFactory;
+
+import org.java_websocket.AbstractWebSocket;
 import org.java_websocket.WebSocket;
-import org.java_websocket.WebSocketAdapter;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.drafts.Draft;
-import org.java_websocket.drafts.Draft_17;
+import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.exceptions.InvalidHandshakeException;
 import org.java_websocket.framing.CloseFrame;
 import org.java_websocket.framing.Framedata;
@@ -29,7 +60,7 @@ import org.java_websocket.handshake.ServerHandshake;
  * A subclass must implement at least <var>onOpen</var>, <var>onClose</var>, and <var>onMessage</var> to be
  * useful. At runtime the user is expected to establish a connection via {@link #connect()}, then receive events like {@link #onMessage(String)} via the overloaded methods and to {@link #send(String)} data to the server.
  */
-public abstract class WebSocketClient extends WebSocketAdapter implements Runnable, WebSocket {
+public abstract class WebSocketClient extends AbstractWebSocket implements Runnable, WebSocket {
 
 	/**
 	 * The URI this channel is supposed to connect to.
@@ -58,20 +89,37 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 
 	private int connectTimeout = 0;
 
-	/** This open a websocket connection as specified by rfc6455 */
-	public WebSocketClient( URI serverURI ) {
-		this( serverURI, new Draft_17() );
+	/**
+	 * Constructs a WebSocketClient instance and sets it to the connect to the
+	 * specified URI. The channel does not attampt to connect automatically. The connection
+	 * will be established once you call <var>connect</var>.
+	 *
+	 * @param serverUri the server URI to connect to
+	 */
+	public WebSocketClient( URI serverUri ) {
+		this( serverUri, new Draft_6455());
 	}
 
 	/**
 	 * Constructs a WebSocketClient instance and sets it to the connect to the
 	 * specified URI. The channel does not attampt to connect automatically. The connection
 	 * will be established once you call <var>connect</var>.
+	 * @param serverUri the server URI to connect to
+	 * @param protocolDraft The draft which should be used for this connection
 	 */
-	public WebSocketClient( URI serverUri , Draft draft ) {
-		this( serverUri, draft, null, 0 );
+	public WebSocketClient( URI serverUri , Draft protocolDraft ) {
+		this( serverUri, protocolDraft, null, 0 );
 	}
 
+	/**
+	 * Constructs a WebSocketClient instance and sets it to the connect to the
+	 * specified URI. The channel does not attampt to connect automatically. The connection
+	 * will be established once you call <var>connect</var>.
+	 * @param serverUri the server URI to connect to
+	 * @param protocolDraft The draft which should be used for this connection
+	 * @param httpHeaders Additional HTTP-Headers
+	 * @param connectTimeout The Timeout for the connection
+	 */
 	public WebSocketClient( URI serverUri , Draft protocolDraft , Map<String,String> httpHeaders , int connectTimeout ) {
 		if( serverUri == null ) {
 			throw new IllegalArgumentException();
@@ -82,11 +130,14 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 		this.draft = protocolDraft;
 		this.headers = httpHeaders;
 		this.connectTimeout = connectTimeout;
+		setTcpNoDelay( false );
+		setReuseAddr( false );
 		this.engine = new WebSocketImpl( this, protocolDraft );
 	}
 
 	/**
 	 * Returns the URI that this WebSocketClient is connected to.
+	 * @return the URI connected to
 	 */
 	public URI getURI() {
 		return uri;
@@ -95,9 +146,18 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 	/**
 	 * Returns the protocol version this channel uses.<br>
 	 * For more infos see https://github.com/TooTallNate/Java-WebSocket/wiki/Drafts
+	 * @return The draft used for this client
 	 */
 	public Draft getDraft() {
 		return draft;
+	}
+
+	/**
+	 * Returns the socket to allow Hostname Verification
+	 * @return the socket used for this connection
+	 */
+	public Socket getSocket() {
+		return socket;
 	}
 
 	/**
@@ -112,8 +172,9 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 
 	/**
 	 * Same as <code>connect</code> but blocks until the websocket connected or failed to do so.<br>
-	 * Returns whether it succeeded or not.
-	 **/
+	 * @return Returns whether it succeeded or not.
+	 * @throws InterruptedException Thrown when the threads get interrupted
+	 */
 	public boolean connectBlocking() throws InterruptedException {
 		connect();
 		connectLatch.await();
@@ -129,7 +190,10 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 			engine.close( CloseFrame.NORMAL );
 		}
 	}
-
+	/**
+	 * Same as <code>close</code> but blocks until the websocket closed or failed to do so.<br>
+	 * @throws InterruptedException Thrown when the threads get interrupted
+	 */
 	public void closeBlocking() throws InterruptedException {
 		close();
 		closeLatch.await();
@@ -155,15 +219,44 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 		engine.send( data );
 	}
 
+	protected Collection<WebSocket> connections() {
+		return Collections.singletonList((WebSocket ) engine );
+	}
+
+
+	public void sendPing() throws NotYetConnectedException {
+		engine.sendPing( );
+	}
+
 	public void run() {
+
 		try {
+			boolean isNewSocket = false;
+
 			if( socket == null ) {
 				socket = new Socket( proxy );
+				isNewSocket = true;
+
 			} else if( socket.isClosed() ) {
 				throw new IOException();
 			}
-			if( !socket.isBound() )
+
+			socket.setTcpNoDelay( isTcpNoDelay() );
+			socket.setReuseAddress( isReuseAddr() );
+
+			if( !socket.isBound() ) {
 				socket.connect( new InetSocketAddress( uri.getHost(), getPort() ), connectTimeout );
+			}
+
+			// if the socket is set by others we don't apply any TLS wrapper
+			if (isNewSocket && uri.getScheme().equals("wss")) {
+
+				SSLContext sslContext = SSLContext.getInstance("TLS");
+				sslContext.init(null, null, null);
+				SSLSocketFactory factory = sslContext.getSocketFactory();
+				socket = factory.createSocket(socket, uri.getHost(), getPort(), true);
+			}
+
 			istream = socket.getInputStream();
 			ostream = socket.getOutputStream();
 
@@ -186,7 +279,7 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 			}
 			engine.eot();
 		} catch ( IOException e ) {
-			engine.eot();
+			handleIOException(e);
 		} catch ( RuntimeException e ) {
 			// this catch case covers internal errors only and indicates a bug in this websocket implementation
 			onError( e );
@@ -194,6 +287,7 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 		}
 		assert ( socket.isClosed() );
 	}
+
 	private int getPort() {
 		int port = uri.getPort();
 		if( port == -1 ) {
@@ -263,8 +357,9 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 	 */
 	@Override
 	public final void onWebsocketOpen( WebSocket conn, Handshakedata handshake ) {
-		connectLatch.countDown();
+		startConnectionLostTimer();
 		onOpen( (ServerHandshake) handshake );
+		connectLatch.countDown();
 	}
 
 	/**
@@ -272,8 +367,7 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 	 */
 	@Override
 	public final void onWebsocketClose( WebSocket conn, int code, String reason, boolean remote ) {
-		connectLatch.countDown();
-		closeLatch.countDown();
+		stopConnectionLostTimer();
 		if( writeThread != null )
 			writeThread.interrupt();
 		try {
@@ -283,6 +377,8 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 			onWebsocketError( this, e );
 		}
 		onClose( code, reason, remote );
+		connectLatch.countDown();
+		closeLatch.countDown();
 	}
 
 	/**
@@ -308,12 +404,28 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 		onClosing( code, reason, remote );
 	}
 
+	/**
+	 * Send when this peer sends a close handshake
+	 *
+	 * @param code The codes can be looked up here: {@link CloseFrame}
+	 * @param reason Additional information string
+	 */
 	public void onCloseInitiated( int code, String reason ) {
 	}
 
+	/** Called as soon as no further frames are accepted
+	 *
+	 * @param code The codes can be looked up here: {@link CloseFrame}
+	 * @param reason Additional information string
+	 * @param remote Returns whether or not the closing of the connection was initiated by the remote host.
+	 */
 	public void onClosing( int code, String reason, boolean remote ) {
 	}
 
+	/**
+	 * Getter for the engine
+	 * @return the engine
+	 */
 	public WebSocket getConnection() {
 		return engine;
 	}
@@ -347,13 +459,13 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 		public void run() {
 			Thread.currentThread().setName( "WebsocketWriteThread" );
 			try {
-				while ( !Thread.interrupted() ) {
+				while( !Thread.interrupted() ) {
 					ByteBuffer buffer = engine.outQueue.take();
 					ostream.write( buffer.array(), 0, buffer.limit() );
 					ostream.flush();
 				}
 			} catch ( IOException e ) {
-				engine.eot();
+				handleIOException(e);
 			} catch ( InterruptedException e ) {
 				// this thread is regularly terminated via an interrupt
 			}
@@ -370,7 +482,8 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 	 * Accepts bound and unbound sockets.<br>
 	 * This method must be called before <code>connect</code>.
 	 * If the given socket is not yet bound it will be bound to the uri specified in the constructor.
-	 **/
+	 * @param socket The socket which should be used for the connection
+	 */
 	public void setSocket( Socket socket ) {
 		if( this.socket != null ) {
 			throw new IllegalStateException( "socket has already been set" );
@@ -450,5 +563,17 @@ public abstract class WebSocketClient extends WebSocketAdapter implements Runnab
 	@Override
 	public String getResourceDescriptor() {
 		return uri.getPath();
+	}
+
+
+	/**
+	 * Method to give some additional info for specific IOExceptions
+	 * @param e the IOException causing a eot.
+	 */
+	private void handleIOException( IOException e ) {
+		if (e instanceof SSLException) {
+			onError( e );
+		}
+		engine.eot();
 	}
 }

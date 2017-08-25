@@ -1,110 +1,244 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket.framing;
+
+import org.java_websocket.exceptions.InvalidDataException;
+import org.java_websocket.util.ByteBufferUtils;
+import org.java_websocket.util.Charsetfunctions;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.java_websocket.exceptions.InvalidDataException;
-import org.java_websocket.exceptions.InvalidFrameException;
-import org.java_websocket.util.Charsetfunctions;
+public abstract class FramedataImpl1 implements Framedata {
 
-public class FramedataImpl1 implements FrameBuilder {
-	protected static byte[] emptyarray = {};
-	protected boolean fin;
-	protected Opcode optcode;
-	private ByteBuffer unmaskedpayload;
-	protected boolean transferemasked;
+    /**
+     * Indicates that this is the final fragment in a message.
+     */
+    private boolean fin;
+    /**
+     * Defines the interpretation of the "Payload data".
+     */
+    private Opcode optcode;
 
-	public FramedataImpl1() {
-	}
+    /**
+     * The unmasked "Payload data" which was sent in this frame
+     */
+    private ByteBuffer unmaskedpayload;
 
-	public FramedataImpl1( Opcode op ) {
-		this.optcode = op;
-		unmaskedpayload = ByteBuffer.wrap( emptyarray );
-	}
+    /**
+     * Defines whether the "Payload data" is masked.
+     */
+    private boolean transferemasked;
 
-	/**
-	 * Helper constructor which helps to create "echo" frames.
-	 * The new object will use the same underlying payload data.
-	 **/
-	public FramedataImpl1( Framedata f ) {
-		fin = f.isFin();
-		optcode = f.getOpcode();
-		unmaskedpayload = f.getPayloadData();
-		transferemasked = f.getTransfereMasked();
-	}
+    /**
+     * Indicates that the rsv1 bit is set or not
+     */
+    private boolean rsv1;
 
-	@Override
-	public boolean isFin() {
-		return fin;
-	}
+    /**
+     * Indicates that the rsv2 bit is set or not
+     */
+    private boolean rsv2;
 
-	@Override
-	public Opcode getOpcode() {
-		return optcode;
-	}
+    /**
+     * Indicates that the rsv3 bit is set or not
+     */
+    private boolean rsv3;
 
-	@Override
-	public boolean getTransfereMasked() {
-		return transferemasked;
-	}
+    /**
+     * Check if the frame is valid due to specification
+     *
+     * @throws InvalidDataException thrown if the frame is not a valid frame
+     */
+    public abstract void isValid() throws InvalidDataException;
 
-	@Override
-	public ByteBuffer getPayloadData() {
-		return unmaskedpayload;
-	}
+    /**
+     * Constructor for a FramedataImpl without any attributes set apart from the opcode
+     *
+     * @param op the opcode to use
+     */
+    public FramedataImpl1(Opcode op) {
+        optcode = op;
+        unmaskedpayload = ByteBufferUtils.getEmptyByteBuffer();
+        fin = true;
+        transferemasked = false;
+        rsv1 = false;
+        rsv2 = false;
+        rsv3 = false;
+    }
 
-	@Override
-	public void setFin( boolean fin ) {
-		this.fin = fin;
-	}
+    @Override
+    public boolean isRSV1() {
+        return rsv1;
+    }
 
-	@Override
-	public void setOptcode( Opcode optcode ) {
-		this.optcode = optcode;
-	}
+    @Override
+    public boolean isRSV2() {
+        return rsv2;
+    }
 
-	@Override
-	public void setPayload( ByteBuffer payload ) throws InvalidDataException {
-		unmaskedpayload = payload;
-	}
+    @Override
+    public boolean isRSV3() {
+        return rsv3;
+    }
 
-	@Override
-	public void setTransferemasked( boolean transferemasked ) {
-		this.transferemasked = transferemasked;
-	}
+    @Override
+    public boolean isFin() {
+        return fin;
+    }
 
-	@Override
-	public void append( Framedata nextframe ) throws InvalidFrameException {
-		ByteBuffer b = nextframe.getPayloadData();
-		if( unmaskedpayload == null ) {
-			unmaskedpayload = ByteBuffer.allocate( b.remaining() );
-			b.mark();
-			unmaskedpayload.put( b );
-			b.reset();
-		} else {
-			b.mark();
-			unmaskedpayload.position( unmaskedpayload.limit() );
-			unmaskedpayload.limit( unmaskedpayload.capacity() );
+    @Override
+    public Opcode getOpcode() {
+        return optcode;
+    }
 
-			if( b.remaining() > unmaskedpayload.remaining() ) {
-				ByteBuffer tmp = ByteBuffer.allocate( b.remaining() + unmaskedpayload.capacity() );
-				unmaskedpayload.flip();
-				tmp.put( unmaskedpayload );
-				tmp.put( b );
-				unmaskedpayload = tmp;
+    @Override
+    public boolean getTransfereMasked() {
+        return transferemasked;
+    }
 
-			} else {
-				unmaskedpayload.put( b );
-			}
-			unmaskedpayload.rewind();
-			b.reset();
-		}
-		fin = nextframe.isFin();
-	}
+    @Override
+    public ByteBuffer getPayloadData() {
+        return unmaskedpayload;
+    }
 
-	@Override
-	public String toString() {
-		return "Framedata{ optcode:" + getOpcode() + ", fin:" + isFin() + ", payloadlength:[pos:" + unmaskedpayload.position() + ", len:" + unmaskedpayload.remaining() + "], payload:" + Arrays.toString( Charsetfunctions.utf8Bytes( new String( unmaskedpayload.array() ) ) ) + "}";
-	}
+    @Override
+    public void append(Framedata nextframe) {
+        ByteBuffer b = nextframe.getPayloadData();
+        if (unmaskedpayload == null) {
+            unmaskedpayload = ByteBuffer.allocate(b.remaining());
+            b.mark();
+            unmaskedpayload.put(b);
+            b.reset();
+        } else {
+            b.mark();
+            unmaskedpayload.position(unmaskedpayload.limit());
+            unmaskedpayload.limit(unmaskedpayload.capacity());
 
+            if (b.remaining() > unmaskedpayload.remaining()) {
+                ByteBuffer tmp = ByteBuffer.allocate(b.remaining() + unmaskedpayload.capacity());
+                unmaskedpayload.flip();
+                tmp.put(unmaskedpayload);
+                tmp.put(b);
+                unmaskedpayload = tmp;
+
+            } else {
+                unmaskedpayload.put(b);
+            }
+            unmaskedpayload.rewind();
+            b.reset();
+        }
+        fin = nextframe.isFin();
+
+    }
+
+    @Override
+    public String toString() {
+        return "Framedata{ optcode:" + getOpcode() + ", fin:" + isFin() + ", rsv1:" + isRSV1() + ", rsv2:" + isRSV2() + ", rsv3:" + isRSV3() + ", payloadlength:[pos:" + unmaskedpayload.position() + ", len:" + unmaskedpayload.remaining() + "], payload:" + ( unmaskedpayload.remaining() > 1000 ? "(too big to display)" : new String( unmaskedpayload.array() ) ) + "}";
+    }
+
+    /**
+     * Set the payload of this frame to the provided payload
+     *
+     * @param payload the payload which is to set
+     */
+    public void setPayload(ByteBuffer payload) {
+        this.unmaskedpayload = payload;
+    }
+
+    /**
+     * Set the fin of this frame to the provided boolean
+     *
+     * @param fin true if fin has to be set
+     */
+    public void setFin(boolean fin) {
+        this.fin = fin;
+    }
+
+    /**
+     * Set the rsv1 of this frame to the provided boolean
+     *
+     * @param rsv1 true if fin has to be set
+     */
+    public void setRSV1(boolean rsv1) {
+        this.rsv1 = rsv1;
+    }
+
+    /**
+     * Set the rsv2 of this frame to the provided boolean
+     *
+     * @param rsv2 true if fin has to be set
+     */
+    public void setRSV2(boolean rsv2) {
+        this.rsv2 = rsv2;
+    }
+
+    /**
+     * Set the rsv3 of this frame to the provided boolean
+     *
+     * @param rsv3 true if fin has to be set
+     */
+    public void setRSV3(boolean rsv3) {
+        this.rsv3 = rsv3;
+    }
+
+    /**
+     * Set the tranferemask of this frame to the provided boolean
+     *
+     * @param transferemasked true if transferemasked has to be set
+     */
+    public void setTransferemasked(boolean transferemasked) {
+        this.transferemasked = transferemasked;
+    }
+
+    /**
+     * Get a frame with a specific opcode
+     *
+     * @param opcode the opcode representing the frame
+     * @return the frame with a specific opcode
+     */
+    public static FramedataImpl1 get(Opcode opcode) {
+        if (opcode== null) {
+            throw new IllegalArgumentException("Supplied opcode cannot be null");
+        }
+        switch (opcode) {
+            case PING:
+                return new PingFrame();
+            case PONG:
+                return new PongFrame();
+            case TEXT:
+                return new TextFrame();
+            case BINARY:
+                return new BinaryFrame();
+            case CLOSING:
+                return new CloseFrame();
+            case CONTINUOUS:
+                return new ContinuousFrame();
+            default:
+                throw new IllegalArgumentException("Supplied opcode is invalid");
+        }
+    }
 }

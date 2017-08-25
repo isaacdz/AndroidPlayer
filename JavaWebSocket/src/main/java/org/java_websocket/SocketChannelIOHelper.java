@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket;
 
 import java.io.IOException;
@@ -22,7 +47,11 @@ public class SocketChannelIOHelper {
 
 	/**
 	 * @see WrappedByteChannel#readMore(ByteBuffer)
-	 * @return returns whether there is more data left which can be obtained via {@link #readMore(ByteBuffer, WebSocketImpl, WrappedByteChannel)}
+	 * @param buf The ByteBuffer to read from
+	 * @param ws The WebSocketImpl associated with the channels
+	 * @param channel The channel to read from
+	 * @return returns Whether there is more data left which can be obtained via {@link WrappedByteChannel#readMore(ByteBuffer)}
+	 * @throws IOException May be thrown by {@link WrappedByteChannel#readMore(ByteBuffer)}#
 	 **/
 	public static boolean readMore( final ByteBuffer buf, WebSocketImpl ws, WrappedByteChannel channel ) throws IOException {
 		buf.clear();
@@ -36,7 +65,12 @@ public class SocketChannelIOHelper {
 		return channel.isNeedRead();
 	}
 
-	/** Returns whether the whole outQueue has been flushed */
+	/** Returns whether the whole outQueue has been flushed
+	 * @param ws The WebSocketImpl associated with the channels
+	 * @param sockchannel The channel to write to
+	 * @throws IOException May be thrown by {@link WrappedByteChannel#writeMore()}
+	 * @return returns Whether there is more data to write
+	 */
 	public static boolean batch( WebSocketImpl ws, ByteChannel sockchannel ) throws IOException {
 		ByteBuffer buffer = ws.outQueue.peek();
 		WrappedByteChannel c = null;

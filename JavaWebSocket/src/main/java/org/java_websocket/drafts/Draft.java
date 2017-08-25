@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket.drafts;
 
 import java.nio.ByteBuffer;
@@ -7,15 +32,13 @@ import java.util.List;
 import java.util.Locale;
 
 import org.java_websocket.WebSocket.Role;
+import org.java_websocket.WebSocketImpl;
 import org.java_websocket.exceptions.IncompleteHandshakeException;
 import org.java_websocket.exceptions.InvalidDataException;
 import org.java_websocket.exceptions.InvalidHandshakeException;
 import org.java_websocket.exceptions.LimitExedeedException;
-import org.java_websocket.framing.CloseFrame;
-import org.java_websocket.framing.FrameBuilder;
-import org.java_websocket.framing.Framedata;
+import org.java_websocket.framing.*;
 import org.java_websocket.framing.Framedata.Opcode;
-import org.java_websocket.framing.FramedataImpl1;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.handshake.ClientHandshakeBuilder;
 import org.java_websocket.handshake.HandshakeBuilder;
@@ -31,12 +54,18 @@ import org.java_websocket.util.Charsetfunctions;
  **/
 public abstract class Draft {
 
+	/**
+	 * Enum which represents the states a handshake may be in
+	 */
 	public enum HandshakeState {
 		/** Handshake matched this Draft successfully */
 		MATCHED,
 		/** Handshake is does not match this Draft */
 		NOT_MATCHED
 	}
+	/**
+	 * Enum which represents type of handshake is required for a close
+	 */
 	public enum CloseHandshakeType {
 		NONE, ONEWAY, TWOWAY
 	}
@@ -106,7 +135,12 @@ public abstract class Draft {
 			String[] pair = line.split( ":", 2 );
 			if( pair.length != 2 )
 				throw new InvalidHandshakeException( "not an http header" );
-			handshake.put( pair[ 0 ], pair[ 1 ].replaceFirst( "^ +", "" ) );
+			// If the handshake contains already a specific key, append the new value
+			if ( handshake.hasFieldValue( pair[ 0 ] ) ) {
+				handshake.put( pair[0], handshake.getFieldValue( pair[ 0 ] ) + "; " + pair[1].replaceFirst( "^ +", "" ) );
+			} else {
+				handshake.put( pair[0], pair[1].replaceFirst( "^ +", "" ) );
+			}
 			line = readStringLine( buf );
 		}
 		if( line == null )
@@ -128,24 +162,36 @@ public abstract class Draft {
 
 	public abstract List<Framedata> createFrames( String text, boolean mask );
 
+
+	/**
+	 * Handle the frame specific to the draft
+	 * @param webSocketImpl the websocketimpl used for this draft
+	 * @param frame the frame which is supposed to be handled
+	 */
+	public abstract void processFrame( WebSocketImpl webSocketImpl, Framedata frame ) throws InvalidDataException;
+
 	public List<Framedata> continuousFrame( Opcode op, ByteBuffer buffer, boolean fin ) {
 		if(op != Opcode.BINARY && op != Opcode.TEXT) {
 			throw new IllegalArgumentException( "Only Opcode.BINARY or  Opcode.TEXT are allowed" );
 		}
-
+		DataFrame bui = null;
 		if( continuousFrameType != null ) {
-			continuousFrameType = Opcode.CONTINUOUS;
+			bui = new ContinuousFrame();
 		} else {
 			continuousFrameType = op;
+			if (op == Opcode.BINARY) {
+				bui = new BinaryFrame();
+			} else if (op == Opcode.TEXT) {
+				bui = new TextFrame();
+			}
 		}
-
-		FrameBuilder bui = new FramedataImpl1( continuousFrameType );
+		bui.setPayload( buffer );
+		bui.setFin( fin );
 		try {
-			bui.setPayload( buffer );
+			bui.isValid();
 		} catch ( InvalidDataException e ) {
 			throw new RuntimeException( e ); // can only happen when one builds close frames(Opcode.Close)
 		}
-		bui.setFin( fin );
 		if( fin ) {
 			continuousFrameType = null;
 		} else {
@@ -204,7 +250,8 @@ public abstract class Draft {
 	/**
 	 * Drafts must only be by one websocket at all. To prevent drafts to be used more than once the Websocket implementation should call this method in order to create a new usable version of a given draft instance.<br>
 	 * The copy can be safely used in conjunction with a new websocket connection.
-	 * */
+	 * @return a copy of the draft
+	 */
 	public abstract Draft copyInstance();
 
 	public Handshakedata translateHandshake( ByteBuffer buf ) throws InvalidHandshakeException {
@@ -223,6 +270,10 @@ public abstract class Draft {
 	
 	public Role getRole() {
 		return role;
+	}
+
+	public String toString() {
+		return getClass().getSimpleName();
 	}
 
 }

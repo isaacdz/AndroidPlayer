@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2010-2017 Nathan Rajlich
+ *
+ *  Permission is hereby granted, free of charge, to any person
+ *  obtaining a copy of this software and associated documentation
+ *  files (the "Software"), to deal in the Software without
+ *  restriction, including without limitation the rights to use,
+ *  copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following
+ *  conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.java_websocket.example;
 
 import java.io.BufferedReader;
@@ -10,9 +35,9 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
-import org.java_websocket.drafts.Draft_17;
-import org.java_websocket.framing.FrameBuilder;
+import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.framing.Framedata;
+import org.java_websocket.framing.FramedataImpl1;
 import org.java_websocket.handshake.ServerHandshake;
 
 public class AutobahnClientTest extends WebSocketClient {
@@ -37,12 +62,12 @@ public class AutobahnClientTest extends WebSocketClient {
 			BufferedReader sysin = new BufferedReader( new InputStreamReader( System.in ) );
 
 			/*First of the thinks a programmer might want to change*/
-			Draft d = new Draft_17();
+			Draft d = new Draft_6455();
 			String clientname = "tootallnate/websocket";
 
 			String protocol = "ws";
 			String host = "localhost";
-			int port = 9001;
+			int port = 9003;
 
 			String serverlocation = protocol + "://" + host + ":" + port;
 			String line = "";
@@ -157,7 +182,7 @@ public class AutobahnClientTest extends WebSocketClient {
 
 	@Override
 	public void onWebsocketMessageFragment( WebSocket conn, Framedata frame ) {
-		FrameBuilder builder = (FrameBuilder) frame;
+		FramedataImpl1 builder = (FramedataImpl1) frame;
 		builder.setTransferemasked( true );
 		getConnection().sendFrame( frame );
 	}

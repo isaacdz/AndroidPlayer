@@ -38,14 +38,6 @@ import java.util.UUID;
 @TargetApi(18)
 public final class HttpMediaDrmCallback implements MediaDrmCallback {
 
-  private static final Map<String, String> PLAYREADY_KEY_REQUEST_PROPERTIES;
-  static {
-    PLAYREADY_KEY_REQUEST_PROPERTIES = new HashMap<>();
-    PLAYREADY_KEY_REQUEST_PROPERTIES.put("Content-Type", "text/xml");
-    PLAYREADY_KEY_REQUEST_PROPERTIES.put("SOAPAction",
-        "http://schemas.microsoft.com/DRM/2007/03/protocols/AcquireLicense");
-  }
-
   private final HttpDataSource.Factory dataSourceFactory;
   private final String defaultUrl;
   private final Map<String, String> keyRequestProperties;
@@ -119,16 +111,20 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
 
   @Override
   public byte[] executeKeyRequest(UUID uuid, KeyRequest request) throws Exception {
-    // WUAKI: ExoPlayer inverse "logic" ... so we were not able to override the license
-    String url = defaultUrl;
+    String url = request.getDefaultUrl();
     if (TextUtils.isEmpty(url)) {
-      url = request.getDefaultUrl();
+      url = defaultUrl;
     }
     Map<String, String> requestProperties = new HashMap<>();
-    requestProperties.put("Content-Type", "application/octet-stream");
+    // Add standard request properties for supported schemes.
+    String contentType = C.PLAYREADY_UUID.equals(uuid) ? "text/xml"
+        : (C.CLEARKEY_UUID.equals(uuid) ? "application/json" : "application/octet-stream");
+    requestProperties.put("Content-Type", contentType);
     if (C.PLAYREADY_UUID.equals(uuid)) {
-      requestProperties.putAll(PLAYREADY_KEY_REQUEST_PROPERTIES);
+      requestProperties.put("SOAPAction",
+          "http://schemas.microsoft.com/DRM/2007/03/protocols/AcquireLicense");
     }
+    // Add additional request properties.
     synchronized (keyRequestProperties) {
       requestProperties.putAll(keyRequestProperties);
     }

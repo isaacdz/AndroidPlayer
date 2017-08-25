@@ -332,8 +332,8 @@ public class SampleChooserActivity extends Activity {
         Toast.makeText(getApplicationContext(), R.string.sample_list_load_error, Toast.LENGTH_LONG)
             .show();
       }
-      // uriList.add("http://10.12.96.25/smarttv/json/load.php?f=exoplayer.json&fmt=exo");
-      uriList.add("http://192.168.1.101/exoplayer.json");
+      uriList.add("http://10.12.96.25/smarttv/json/load.php?f=exoplayer.json&fmt=exo");
+      // uriList.add("http://192.168.1.101/exoplayer.json");
       uris = new String[uriList.size()];
       uriList.toArray(uris);
       Arrays.sort(uris,java.util.Collections.reverseOrder());

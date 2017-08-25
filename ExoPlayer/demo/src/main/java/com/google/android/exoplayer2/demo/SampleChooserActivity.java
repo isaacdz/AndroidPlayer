@@ -40,9 +40,11 @@ import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
+import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,15 +52,268 @@ import java.util.UUID;
 
 /**
  * An activity for selecting from a list of samples.
+ * Read JSON locally and from 10.12.96.25
  */
 public class SampleChooserActivity extends Activity {
 
   private static final String TAG = "SampleChooserActivity";
+  private boolean loadData = true;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.sample_chooser_activity);
+    final SampleChooserActivity self = this;
+
+    try {
+      new HTTPListener(this, this.getApplicationContext(),new WSListener.Reader() {
+        public void read(String txt) throws Exception {
+          parseJSON(self,txt);
+        }
+      },true);
+    } catch(Exception e) {
+    }
+
+    loadInfo();
+
+    new WSListener(new WSListener.Reader() {
+      public void read(String txt) throws Exception {
+        parseJSON(self,txt);
+      }
+    });
+
+  }
+
+  private String castAPIResponses(String txt) throws Exception {
+
+    org.json.JSONObject jsonObj = null;
+    try {
+
+      try {
+          jsonObj = new org.json.JSONObject(txt);
+      } catch(Exception e) {
+          // Avoid some socket server situations
+          if(txt.startsWith("\"") && txt.endsWith("\"")) {
+              txt = txt.substring(1,txt.length()-1);
+              txt = txt.replaceAll("\\\\", "");
+              jsonObj = new org.json.JSONObject(txt);
+          }
+          else {
+              // Rethrow the error
+              throw e;
+          }
+      }
+
+      org.json.JSONObject parsedJson = new org.json.JSONObject();
+      parsedJson.putOpt("name",jsonObj.optString("key",jsonObj.optString("wrid",jsonObj.optString("title",null))));
+      parsedJson.putOpt("uri",jsonObj.optString("url",jsonObj.optString("uri",null)));
+
+      if(parsedJson.optString("uri",null)==null || parsedJson.optString("uri",null).equals("null")) {
+        throw new Exception("NO URI found");
+      }
+
+      String systemEnc = jsonObj.optString("type");
+      org.json.JSONObject licenseParams = jsonObj.optJSONObject("license");
+      if(licenseParams!=null) {
+        String drm = licenseParams.optString("drm",null);
+        if(drm!=null && drm.length()>0) {
+          systemEnc = drm;
+        }
+      }
+      else {
+        String player = jsonObj.optString("player",null);
+        if(player!=null && player.length()>0) {
+          String[] sp = player.split(":");
+          systemEnc = sp[sp.length-1];
+        }
+      }
+
+      if(systemEnc!=null) {
+        systemEnc = systemEnc.toLowerCase();
+      }
+
+      switch(systemEnc) {
+        case "wvm":
+        case "widevine":
+          parsedJson.putOpt("drm_scheme","widevine");
+          break;
+        case "ss-pr":
+        case "pr":
+        case "playready":
+        case "mss":
+          parsedJson.putOpt("drm_scheme","playready");
+          break;
+        case "wvc":
+        case "wvn":
+          throw new Exception("DRM scheme ["+systemEnc+"] not handled");
+      }
+
+      String licenseUrl = null;
+      String customData = null;
+      // Kami
+      if(licenseParams!=null) {
+        licenseUrl = licenseParams.optString("url",null);
+        customData = licenseParams.optString("custom_data",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+        if(customData!=null && customData.equals("null")) customData = null;
+      }
+      // Gizmo ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("license_url",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        customData = jsonObj.optString("custom_data",null);
+        if(customData!=null && customData.equals("null")) customData = null;
+      }
+      // JS ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("license",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        JSONObject params = jsonObj.optJSONObject("params");
+        if(params!=null) {
+          customData = params.optString("customData",null);
+          if(customData!=null && customData.equals("null")) customData = null;
+        }
+      }
+      // ExoFormat ( check parameters )
+      if(licenseUrl==null ||licenseUrl.length()==0) {
+        licenseUrl = jsonObj.optString("drm_license_url",null);
+        if(licenseUrl!=null && licenseUrl.equals("null")) licenseUrl = null;
+      }
+      if(customData==null ||customData.length()==0) {
+        JSONObject params = jsonObj.optJSONObject("drm_key_request_properties");
+        if(params!=null) {
+          customData = params.optString("PRCustomData",null);
+          if(customData!=null && customData.equals("null")) customData = null;
+        }
+      }
+
+      if(licenseUrl!=null && licenseUrl.length()>0) {
+        parsedJson.putOpt("drm_license_url",licenseUrl);
+      }
+      if(customData!=null && customData.length()>0) {
+        // customDataObj
+        org.json.JSONObject customDataObj = new org.json.JSONObject();
+        customDataObj.putOpt("PRCustomData",customData);
+        parsedJson.putOpt("drm_key_request_properties",customDataObj);
+      }
+
+      if(parsedJson.optString("uri",null).indexOf(".mpd")>0) {
+        parsedJson.putOpt("extension","mpd");
+      }
+
+      JSONObject subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL);
+      if(subtitle!=null) {
+        String subtitleUrl = subtitle.optString("url",null);
+        if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
+          parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
+        }
+      }
+
+      txt = parsedJson.toString();
+
+    } catch(Exception e) {
+
+      // If the object was previously casted we'll NOT throw the exception and we'll try to play
+      if(jsonObj==null || jsonObj.optString("uri",null)==null) {
+        Log.e(TAG,txt);
+        throw e;
+      }
+
+    }
+
+    return txt;
+  }
+
+  private void parseJSON(SampleChooserActivity self, String txt) throws Exception {
+    String formattedTxt = castAPIResponses(txt);
+    JsonReader reader = new JsonReader(new java.io.StringReader(formattedTxt));
+    SampleListLoader loaderTask = new SampleListLoader();
+    final Sample sample = loaderTask.readEntry(reader, false);
+
+    self.runOnUiThread(new Runnable() {
+      public void run() {
+        new android.os.Handler().postDelayed(
+                new Runnable() {
+                  public void run() {
+                    if (UriSample.class.isInstance(sample)) {
+                      Toast.makeText(getApplicationContext(), ((UriSample)sample).uri, Toast.LENGTH_LONG).show();
+                    }
+                  }
+                },
+                1000);
+      }
+    });
+
+
+    startingActivity = true;
+    startActivity(sample.buildIntent(self));
+  }
+
+  public String getLocalIpAddress(boolean checkIsUp, boolean onlyIP){
+    String ret = "";
+    String suffix = "";
+    try {
+
+      for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
+           en.hasMoreElements(); ) {
+        java.net.NetworkInterface intf = en.nextElement();
+        Boolean isUp;
+        try {
+          isUp = !intf.isUp();
+        } catch(SocketException e) {
+          isUp = false;
+        }
+        if (checkIsUp && !isUp) {
+          continue;
+        }
+        for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+          java.net.InetAddress inetAddress = enumIpAddr.nextElement();
+          if (!inetAddress.isLoopbackAddress()) {
+            String str = inetAddress.getHostAddress();
+            if (str == null || str.length() <= 0 || str.contains(":") || !str.contains(".")) {
+              // It's a IPV6 address
+              continue;
+            }
+            if (ret.length() > 0) {
+              ret = ret + " " + str;
+            } else {
+              ret = str;
+              // Only 1 suffix
+              if(onlyIP == false) {
+                suffix = " "+HTTPListener.getBaseURL(str);
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception ex) {
+      Log.e("IP Address", ex.toString());
+    }
+
+    if(checkIsUp==true) {
+      android.net.ConnectivityManager connectivityManager
+              = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+      android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+      if (activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting()) {
+        // Check again but without using isUp
+        return getLocalIpAddress(false, onlyIP);
+      }
+    }
+
+    return ret+suffix;
+  }
+
+  private void loadInfo() {
+    if(!loadData)
+    {
+      return;
+    }
+    setTitle(getLocalIpAddress(true, false)+" | 0 - Reload JSON");
+    loadData = false;
     Intent intent = getIntent();
     String dataUri = intent.getDataString();
     String[] uris;
@@ -77,12 +332,48 @@ public class SampleChooserActivity extends Activity {
         Toast.makeText(getApplicationContext(), R.string.sample_list_load_error, Toast.LENGTH_LONG)
             .show();
       }
+      // uriList.add("http://10.12.96.25/smarttv/json/load.php?f=exoplayer.json&fmt=exo");
+      uriList.add("http://192.168.1.101/exoplayer.json");
       uris = new String[uriList.size()];
       uriList.toArray(uris);
-      Arrays.sort(uris);
+      Arrays.sort(uris,java.util.Collections.reverseOrder());
     }
     SampleListLoader loaderTask = new SampleListLoader();
     loaderTask.execute(uris);
+  }
+  @Override
+  public boolean onKeyDown(int keyCode, android.view.KeyEvent event)
+  {
+    if (keyCode == android.view.KeyEvent.KEYCODE_0) {
+      loadData = true;
+      loadInfo();
+      return false;
+    }
+    return super.onKeyDown(keyCode, event);
+  }
+
+  @Override
+  protected void onResume()
+  {
+    super.onResume();
+    loadInfo();
+  }
+
+  @Override
+  protected void onStop()
+  {
+    super.onStop();
+    // Next time we'll load data
+    if(!startingActivity) {
+      loadData = true;
+    }
+  }
+
+  @Override
+  protected void onDestroy()
+  {
+    super.onDestroy();
+    loadData = true;
   }
 
   private void onSampleGroups(final List<SampleGroup> groups, boolean sawError) {
@@ -102,7 +393,9 @@ public class SampleChooserActivity extends Activity {
     });
   }
 
+  private boolean startingActivity = false;
   private void onSampleSelected(Sample sample) {
+    startingActivity = true;
     startActivity(sample.buildIntent(this));
   }
 
@@ -179,6 +472,7 @@ public class SampleChooserActivity extends Activity {
       String sampleName = null;
       String uri = null;
       String extension = null;
+      String subtitle = null;
       UUID drmUuid = null;
       String drmLicenseUrl = null;
       String[] drmKeyRequestProperties = null;
@@ -195,6 +489,9 @@ public class SampleChooserActivity extends Activity {
             break;
           case "uri":
             uri = reader.nextString();
+            break;
+          case "subtitle":
+            subtitle = reader.nextString();
             break;
           case "extension":
             extension = reader.nextString();
@@ -250,7 +547,7 @@ public class SampleChooserActivity extends Activity {
             preferExtensionDecoders, playlistSamplesArray);
       } else {
         return new UriSample(sampleName, drmUuid, drmLicenseUrl, drmKeyRequestProperties,
-            preferExtensionDecoders, uri, extension, adTagUri);
+            preferExtensionDecoders, uri, extension, subtitle, adTagUri);
       }
     }
 
@@ -406,14 +703,16 @@ public class SampleChooserActivity extends Activity {
 
     public final String uri;
     public final String extension;
+    public final String subtitle;
     public final String adTagUri;
 
     public UriSample(String name, UUID drmSchemeUuid, String drmLicenseUrl,
         String[] drmKeyRequestProperties, boolean preferExtensionDecoders, String uri,
-        String extension, String adTagUri) {
+        String extension, String subtitle, String adTagUri) {
       super(name, drmSchemeUuid, drmLicenseUrl, drmKeyRequestProperties, preferExtensionDecoders);
       this.uri = uri;
       this.extension = extension;
+      this.subtitle = subtitle;
       this.adTagUri = adTagUri;
     }
 
@@ -422,6 +721,7 @@ public class SampleChooserActivity extends Activity {
       return super.buildIntent(context)
           .setData(Uri.parse(uri))
           .putExtra(PlayerActivity.EXTENSION_EXTRA, extension)
+          .putExtra(PlayerActivity.SUBTITLES_URL, subtitle)
           .putExtra(PlayerActivity.AD_TAG_URI_EXTRA, adTagUri)
           .setAction(PlayerActivity.ACTION_VIEW);
     }

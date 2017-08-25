@@ -15,6 +15,14 @@ apply from: '../constants.gradle'
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'config'
+            keyPassword '123456789'
+            storeFile file('config')
+            storePassword '123456789'
+        }
+    }
     compileSdkVersion project.ext.compileSdkVersion
     buildToolsVersion project.ext.buildToolsVersion
 
@@ -51,6 +59,8 @@ dependencies {
     compile project(modulePrefix + 'library-hls')
     compile project(modulePrefix + 'library-smoothstreaming')
     compile project(modulePrefix + 'library-ui')
+    compile fileTree(include: '*.jar', dir: '../../JavaWebSocket/dist/')
+    compile fileTree(include: '*.jar', dir: '../../nanohttpd/core/build/libs/')
     withExtensionsCompile project(path: modulePrefix + 'extension-ffmpeg')
     withExtensionsCompile project(path: modulePrefix + 'extension-flac')
     withExtensionsCompile project(path: modulePrefix + 'extension-ima')

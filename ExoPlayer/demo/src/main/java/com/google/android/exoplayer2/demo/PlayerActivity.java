@@ -366,7 +366,12 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
   private MediaSource appendSubtitles(MediaSource mediaSource, Intent intent) {
     String url = intent.getStringExtra(SUBTITLES_URL);
     if (url != null && url.length() > 0) {
-      String mimeType = url.indexOf(".srt") > 0 ? MimeTypes.APPLICATION_SUBRIP : MimeTypes.TEXT_VTT;
+      String mimeType = url.indexOf(".srt") > 0 ? MimeTypes.APPLICATION_SUBRIP :
+              url.indexOf(".vtt") > 0 ? MimeTypes.TEXT_VTT : "" ;
+      if(mimeType.isEmpty()) {
+        showToast("Invalid subtitles [ format should be srt or vtt ]");
+        return mediaSource;
+      }
       Uri srtUri = Uri.parse(url);
       Format textFormat = Format.createTextSampleFormat( null, mimeType, null, Format.NO_VALUE, Format.NO_VALUE, "subt", Format.NO_VALUE, null);
       MediaSource textMediaSource = new SingleSampleMediaSource(srtUri, mediaDataSourceFactory, textFormat, C.TIME_UNSET);
@@ -399,7 +404,8 @@ public class PlayerActivity extends Activity implements OnClickListener, EventLi
   private DrmSessionManager<FrameworkMediaCrypto> buildDrmSessionManagerV18(UUID uuid,
       String licenseUrl, String[] keyRequestPropertiesArray) throws UnsupportedDrmException {
     HttpMediaDrmCallback drmCallback = new HttpMediaDrmCallback(licenseUrl,
-        buildHttpDataSourceFactory(false));
+       (licenseUrl!=null && licenseUrl.trim().length()>10), buildHttpDataSourceFactory(false));
+
     // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
     java.util.HashMap<String, String> optionalKeyRequestParameters = null;
     if (keyRequestPropertiesArray != null) {

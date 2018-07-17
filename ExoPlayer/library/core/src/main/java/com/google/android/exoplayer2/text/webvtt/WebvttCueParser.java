@@ -34,18 +34,19 @@ import android.text.style.UnderlineSpan;
 import android.util.Log;
 import com.google.android.exoplayer2.text.Cue;
 import com.google.android.exoplayer2.util.ParsableByteArray;
+import com.google.android.exoplayer2.util.Util;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Parser for WebVTT cues. (https://w3c.github.io/webvtt/#cues)
  */
-/* package */ final class WebvttCueParser {
+public final class WebvttCueParser {
 
   public static final Pattern CUE_HEADER_PATTERN = Pattern
       .compile("^(\\S+)\\s+-->\\s+(\\S+)(.*)?$");
@@ -90,7 +91,7 @@ import java.util.regex.Pattern;
    * @param styles List of styles defined by the CSS style blocks preceeding the cues.
    * @return Whether a valid Cue was found.
    */
-  /* package */ boolean parseCue(ParsableByteArray webvttData, WebvttCue.Builder builder,
+  public boolean parseCue(ParsableByteArray webvttData, WebvttCue.Builder builder,
       List<WebvttCssStyle> styles) {
     String firstLine = webvttData.readLine();
     if (firstLine == null) {
@@ -157,7 +158,7 @@ import java.util.regex.Pattern;
   /* package */ static void parseCueText(String id, String markup, WebvttCue.Builder builder,
       List<WebvttCssStyle> styles) {
     SpannableStringBuilder spannedText = new SpannableStringBuilder();
-    Stack<StartTag> startTagStack = new Stack<>();
+    ArrayDeque<StartTag> startTagStack = new ArrayDeque<>();
     List<StyleMatch> scratchStyleMatches = new ArrayList<>();
     int pos = 0;
     while (pos < markup.length()) {
@@ -456,7 +457,7 @@ import java.util.regex.Pattern;
     if (tagExpression.isEmpty()) {
       return null;
     }
-    return tagExpression.split("[ \\.]")[0];
+    return Util.splitAtFirst(tagExpression, "[ \\.]")[0];
   }
 
   private static void getApplicableStyles(List<WebvttCssStyle> declaredStyles, String id,
@@ -518,7 +519,7 @@ import java.util.regex.Pattern;
         voice = fullTagExpression.substring(voiceStartIndex).trim();
         fullTagExpression = fullTagExpression.substring(0, voiceStartIndex);
       }
-      String[] nameAndClasses = fullTagExpression.split("\\.");
+      String[] nameAndClasses = Util.split(fullTagExpression, "\\.");
       String name = nameAndClasses[0];
       String[] classes;
       if (nameAndClasses.length > 1) {

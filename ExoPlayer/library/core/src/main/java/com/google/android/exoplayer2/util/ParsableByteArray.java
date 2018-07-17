@@ -233,7 +233,7 @@ public final class ParsableByteArray {
   }
 
   /**
-   * Reads the next two bytes as an signed value.
+   * Reads the next two bytes as a signed value.
    */
   public short readShort() {
     return (short) ((data[position++] & 0xFF) << 8
@@ -252,6 +252,15 @@ public final class ParsableByteArray {
    */
   public int readUnsignedInt24() {
     return (data[position++] & 0xFF) << 16
+        | (data[position++] & 0xFF) << 8
+        | (data[position++] & 0xFF);
+  }
+
+  /**
+   * Reads the next three bytes as a signed value.
+   */
+  public int readInt24() {
+    return ((data[position++] & 0xFF) << 24) >> 8
         | (data[position++] & 0xFF) << 8
         | (data[position++] & 0xFF);
   }
@@ -305,7 +314,7 @@ public final class ParsableByteArray {
   }
 
   /**
-   * Reads the next four bytes as an signed value in little endian order.
+   * Reads the next four bytes as a signed value in little endian order.
    */
   public int readLittleEndianInt() {
     return (data[position++] & 0xFF)
@@ -461,7 +470,7 @@ public final class ParsableByteArray {
     if (lastIndex < limit && data[lastIndex] == 0) {
       stringLength--;
     }
-    String result = new String(data, position, stringLength);
+    String result = Util.fromUtf8Bytes(data, position, stringLength);
     position += length;
     return result;
   }
@@ -480,7 +489,7 @@ public final class ParsableByteArray {
     while (stringLimit < limit && data[stringLimit] != 0) {
       stringLimit++;
     }
-    String string = new String(data, position, stringLimit - position);
+    String string = Util.fromUtf8Bytes(data, position, stringLimit - position);
     position = stringLimit;
     if (position < limit) {
       position++;
@@ -511,7 +520,7 @@ public final class ParsableByteArray {
       // There's a byte order mark at the start of the line. Discard it.
       position += 3;
     }
-    String line = new String(data, position, lineLimit - position);
+    String line = Util.fromUtf8Bytes(data, position, lineLimit - position);
     position = lineLimit;
     if (position == limit) {
       return line;

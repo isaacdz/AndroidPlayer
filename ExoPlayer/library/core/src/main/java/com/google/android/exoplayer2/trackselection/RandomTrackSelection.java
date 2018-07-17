@@ -16,6 +16,7 @@
 package com.google.android.exoplayer2.trackselection;
 
 import android.os.SystemClock;
+import android.support.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.source.TrackGroup;
 import java.util.Random;
@@ -47,7 +48,6 @@ public final class RandomTrackSelection extends BaseTrackSelection {
     public RandomTrackSelection createTrackSelection(TrackGroup group, int... tracks) {
       return new RandomTrackSelection(group, tracks, random);
     }
-
   }
 
   private final Random random;
@@ -88,7 +88,8 @@ public final class RandomTrackSelection extends BaseTrackSelection {
   }
 
   @Override
-  public void updateSelectedTrack(long bufferedDurationUs) {
+  public void updateSelectedTrack(long playbackPositionUs, long bufferedDurationUs,
+      long availableDurationUs) {
     // Count the number of non-blacklisted formats.
     long nowMs = SystemClock.elapsedRealtime();
     int nonBlacklistedFormatCount = 0;
@@ -122,7 +123,7 @@ public final class RandomTrackSelection extends BaseTrackSelection {
   }
 
   @Override
-  public Object getSelectionData() {
+  public @Nullable Object getSelectionData() {
     return null;
   }
 

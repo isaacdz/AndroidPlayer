@@ -17,6 +17,7 @@ package com.google.android.exoplayer2.text.webvtt;
 
 import com.google.android.exoplayer2.text.SubtitleDecoderException;
 import com.google.android.exoplayer2.util.ParsableByteArray;
+import com.google.android.exoplayer2.util.Util;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,12 +54,16 @@ public final class WebvttParserUtil {
    */
   public static long parseTimestampUs(String timestamp) throws NumberFormatException {
     long value = 0;
-    String[] parts = timestamp.split("\\.", 2);
-    String[] subparts = parts[0].split(":");
+    String[] parts = Util.splitAtFirst(timestamp, "\\.");
+    String[] subparts = Util.split(parts[0], ":");
     for (String subpart : subparts) {
-      value = value * 60 + Long.parseLong(subpart);
+      value = (value * 60) + Long.parseLong(subpart);
     }
-    return (value * 1000 + Long.parseLong(parts[1])) * 1000;
+    value *= 1000;
+    if (parts.length == 2) {
+      value += Long.parseLong(parts[1]);
+    }
+    return value * 1000;
   }
 
   /**
@@ -74,7 +79,7 @@ public final class WebvttParserUtil {
     }
     return Float.parseFloat(s.substring(0, s.length() - 1)) / 100;
   }
-  
+
   /**
    * Reads lines up to and including the next WebVTT cue header.
    *

@@ -53,6 +53,7 @@ import com.google.android.exoplayer2.offline.FilteringManifestParser;
 import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.LoopingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.MergingMediaSource;
 import com.google.android.exoplayer2.source.SingleSampleMediaSource;
@@ -82,6 +83,7 @@ import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.ui.TrackSelectionView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
@@ -91,7 +93,10 @@ import java.lang.reflect.Constructor;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** An activity that plays media using {@link SimpleExoPlayer}. */
@@ -100,6 +105,7 @@ public class PlayerActivity extends Activity
 
   public static final String DRM_SCHEME_EXTRA = "drm_scheme";
   public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
+  public static final String AUDIO_URL = "audio";
   public static final String SUBTITLES_URL = "subtitle";
   public static final String DRM_KEY_REQUEST_PROPERTIES_EXTRA = "drm_key_request_properties";
   public static final String DRM_MULTI_SESSION_EXTRA = "drm_multi_session";
@@ -409,8 +415,12 @@ public class PlayerActivity extends Activity
 
       MediaSource[] mediaSources = new MediaSource[uris.length];
       for (int i = 0; i < uris.length; i++) {
+        debugViewHelper.setUrl(uris[0]);
         mediaSources[i] = buildMediaSource(uris[i], extensions[i]);
         mediaSources[i] = appendSubtitles(mediaSources[i], intent);
+        if(Util.inferContentType(uris[i], extensions[i]) == C.TYPE_OTHER) {
+          mediaSources[i] = appendAudio(mediaSources[i], intent);
+        }
       }
       mediaSource =
           mediaSources.length == 1 ? mediaSources[0] : new ConcatenatingMediaSource(mediaSources);
@@ -439,8 +449,57 @@ public class PlayerActivity extends Activity
     updateButtonVisibilities();
   }
 
+  private MediaSource appendAudio(MediaSource mediaSource, Intent intent) {
+    try {
+        HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra(AUDIO_URL);
+        if (hashMap != null && hashMap.size() > 0) {
+            List<MediaSource> mediaSources = new ArrayList<MediaSource>();
+            mediaSources.add(mediaSource);
+            for (Map.Entry<String, String> audio : hashMap.entrySet()) {
+                MediaSource audioMediaSource = getAudio(audio);
+                if(audioMediaSource!=null) {
+                  mediaSources.add(audioMediaSource);
+                }
+            }
+            return new LoopingMediaSource(new MergingMediaSource(mediaSources.toArray(new MediaSource[mediaSources.size()])));
+        }
+    } catch(Exception e) {
+
+    }
+    return mediaSource;
+  }
+
+  private MediaSource getAudio(Map.Entry<String, String> audio) {
+    String url = audio.getValue();
+    if (url != null && url.length() > 0) {
+      ExtractorMediaSource ret = new ExtractorMediaSource.Factory(mediaDataSourceFactory).createMediaSource(Uri.parse(url));
+      return ret;
+    }
+    return null;
+  };
+
   private MediaSource appendSubtitles(MediaSource mediaSource, Intent intent) {
-    String url = intent.getStringExtra(SUBTITLES_URL);
+    try {
+      HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra(SUBTITLES_URL);
+      if (hashMap != null && hashMap.size() > 0) {
+        List<MediaSource> mediaSources = new ArrayList<MediaSource>();
+        mediaSources.add(mediaSource);
+        for (Map.Entry<String, String> subtitle : hashMap.entrySet()) {
+          MediaSource subtitleMediaSource = getSubtitle(subtitle);
+          if(subtitleMediaSource!=null) {
+            mediaSources.add(subtitleMediaSource);
+          }
+        }
+        return new LoopingMediaSource(new MergingMediaSource(mediaSources.toArray(new MediaSource[mediaSources.size()])));
+      }
+    } catch(Exception e) {
+
+    }
+    return mediaSource;
+  }
+
+  private MediaSource getSubtitle(Map.Entry<String, String> subtitle) {
+    String url = subtitle.getValue();
     if (url != null && url.length() > 0) {
       String mimeType = url.indexOf(".srt") > 0 ? MimeTypes.APPLICATION_SUBRIP :
               url.indexOf(".vtt") > 0 ? MimeTypes.TEXT_VTT : "" ;
@@ -448,12 +507,12 @@ public class PlayerActivity extends Activity
         showToast("Invalid subtitles [ format should be srt or vtt ]");
         return mediaSource;
       }
+      String id = subtitle.getKey();
       Uri srtUri = Uri.parse(url);
-      Format textFormat = Format.createTextSampleFormat( null, mimeType, null, Format.NO_VALUE, Format.NO_VALUE, "subt", Format.NO_VALUE, null);
-      MediaSource textMediaSource = new SingleSampleMediaSource(srtUri, mediaDataSourceFactory, textFormat, C.TIME_UNSET);
-      return new MergingMediaSource(mediaSource, textMediaSource);
+      Format textFormat = Format.createTextSampleFormat( id, mimeType, null, Format.NO_VALUE, Format.NO_VALUE, id, Format.NO_VALUE, null);
+      return new SingleSampleMediaSource.Factory(mediaDataSourceFactory).createMediaSource(srtUri, textFormat, C.TIME_UNSET);
     }
-    return mediaSource;
+    return null;
   }
 
   private MediaSource buildMediaSource(Uri uri) {

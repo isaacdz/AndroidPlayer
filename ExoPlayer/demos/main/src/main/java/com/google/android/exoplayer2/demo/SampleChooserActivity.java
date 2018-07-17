@@ -24,9 +24,11 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.JsonReader;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
@@ -49,7 +51,9 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** An activity for selecting from a list of media samples. */
 public class SampleChooserActivity extends Activity
@@ -71,6 +75,9 @@ public class SampleChooserActivity extends Activity
     sampleListView.setAdapter(sampleAdapter);
     sampleListView.setOnChildClickListener(this);
 
+
+    // getWindow().addFlags(WindowManager.LayoutParams.PREVENT_POWER_KEY);
+
     try {
       new HTTPListener(this, this.getApplicationContext(),new WSListener.Reader() {
         public void read(String txt) throws Exception {
@@ -89,6 +96,18 @@ public class SampleChooserActivity extends Activity
     });
 
   }
+
+  @Override
+  public boolean onKeyDown(int keyCode, android.view.KeyEvent event)
+  {
+    if (keyCode == KeyEvent.KEYCODE_0 || keyCode == KeyEvent.KEYCODE_MENU) {
+      loadData = true;
+      loadInfo();
+      return true;
+    }
+    return super.onKeyDown(keyCode, event);
+  }
+
 
   private String castAPIResponses(String txt) throws Exception {
 
@@ -216,6 +235,14 @@ public class SampleChooserActivity extends Activity
         String subtitleUrl = subtitle.optString("url",null);
         if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
           parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
+        }
+      }
+
+      JSONObject audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL);
+      if(audio!=null) {
+        String audioUrl = audio.optString("url",null);
+        if(audioUrl!=null && audioUrl.length()>0 && !audioUrl.equals("null")) {
+          parsedJson.putOpt(PlayerActivity.AUDIO_URL,audioUrl);
         }
       }
 
@@ -498,7 +525,8 @@ public class SampleChooserActivity extends Activity
       String sampleName = null;
       Uri uri = null;
       String extension = null;
-      String subtitle = "";
+      HashMap<String, String> audioMap = new HashMap<String, String>();
+      HashMap<String, String> subtitleMap = new HashMap<String, String>();
       String drmScheme = null;
       String drmLicenseUrl = null;
       String[] drmKeyRequestProperties = null;
@@ -519,7 +547,10 @@ public class SampleChooserActivity extends Activity
             uri = Uri.parse(reader.nextString());
             break;
           case "subtitle":
-            subtitle = reader.nextString();
+            parseAudioOrSubtitle(reader, subtitleMap);
+            break;
+          case "audio":
+            parseAudioOrSubtitle(reader, audioMap);
             break;
           case "extension":
             extension = reader.nextString();
@@ -598,9 +629,43 @@ public class SampleChooserActivity extends Activity
             sampleName, preferExtensionDecoders, abrAlgorithm, drmInfo, playlistSamplesArray);
       } else {
         return new UriSample(
-            sampleName, preferExtensionDecoders, abrAlgorithm, drmInfo, uri, extension, subtitle, adTagUri);
+            sampleName, preferExtensionDecoders, abrAlgorithm, drmInfo, uri, extension, audioMap, subtitleMap, adTagUri);
       }
     }
+
+    private void parseAudioOrSubtitle(JsonReader reader, Map<String, String> theMap) {
+      try {
+        String k = reader.nextString();
+        theMap.put("und", k);
+      } catch(Exception e1) {
+        parseAudioOrSubtitleFromObject(reader, theMap);
+      }
+    }
+    private void parseAudioOrSubtitleFromObject(JsonReader reader, Map<String, String> theMap) {
+      try {
+        reader.beginObject();
+        while (reader.hasNext()) {
+          theMap.put(reader.nextName(), reader.nextString());
+        }
+        reader.endObject();
+      } catch (Exception e) {
+        parseAudioOrSubtitleFromArray(reader, theMap);
+      }
+    }
+
+    private void parseAudioOrSubtitleFromArray(JsonReader reader, Map<String, String> theMap) {
+      try {
+        reader.beginArray();
+        int i = 0;
+        while (reader.hasNext()) {
+          theMap.put(String.valueOf(++i), reader.nextString());
+        }
+        reader.endArray();
+      } catch (Exception e) {
+      }
+    }
+
+
 
     private SampleGroup getGroup(String groupName, List<SampleGroup> groups) {
       for (int i = 0; i < groups.size(); i++) {
@@ -784,7 +849,8 @@ public class SampleChooserActivity extends Activity
 
     public final Uri uri;
     public final String extension;
-    public final String subtitle;
+    public final HashMap<String, String> audioMap;
+    public final HashMap<String, String> subtitleMap;
     public final String adTagUri;
 
     public UriSample(
@@ -794,12 +860,14 @@ public class SampleChooserActivity extends Activity
         DrmInfo drmInfo,
         Uri uri,
         String extension,
-        String subtitle,
+        HashMap<String, String> audioMap,
+        HashMap<String, String> subtitleMap,
         String adTagUri) {
       super(name, preferExtensionDecoders, abrAlgorithm, drmInfo);
       this.uri = uri;
       this.extension = extension;
-      this.subtitle = subtitle;
+      this.audioMap = audioMap;
+      this.subtitleMap = subtitleMap;
       this.adTagUri = adTagUri;
     }
 
@@ -808,7 +876,8 @@ public class SampleChooserActivity extends Activity
       return super.buildIntent(context)
           .setData(uri)
           .putExtra(PlayerActivity.EXTENSION_EXTRA, extension)
-          .putExtra(PlayerActivity.SUBTITLES_URL, subtitle)
+          .putExtra(PlayerActivity.AUDIO_URL, audioMap)
+          .putExtra(PlayerActivity.SUBTITLES_URL, subtitleMap)
           .putExtra(PlayerActivity.AD_TAG_URI_EXTRA, adTagUri)
           .setAction(PlayerActivity.ACTION_VIEW);
     }

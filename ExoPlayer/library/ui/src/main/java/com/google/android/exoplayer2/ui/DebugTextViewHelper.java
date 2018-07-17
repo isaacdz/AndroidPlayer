@@ -16,6 +16,7 @@
 package com.google.android.exoplayer2.ui;
 
 import android.annotation.SuppressLint;
+import android.net.Uri;
 import android.widget.TextView;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.Player;
@@ -33,6 +34,7 @@ public class DebugTextViewHelper extends Player.DefaultEventListener implements 
 
   private final SimpleExoPlayer player;
   private final TextView textView;
+  private String url = "";
 
   private boolean started;
 
@@ -101,7 +103,7 @@ public class DebugTextViewHelper extends Player.DefaultEventListener implements 
 
   /** Returns the debugging information string to be shown by the target {@link TextView}. */
   protected String getDebugString() {
-    return getPlayerStateString() + getVideoString() + getAudioString();
+    return getPlayerStateString() + getVideoString() + getAudioString() + getUrl();
   }
 
   /** Returns a string containing player state debugging information. */
@@ -149,6 +151,14 @@ public class DebugTextViewHelper extends Player.DefaultEventListener implements 
     return "\n" + format.sampleMimeType + "(id:" + format.id + " hz:" + format.sampleRate + " ch:"
         + format.channelCount
         + getDecoderCountersBufferCountString(player.getAudioDecoderCounters()) + ")";
+  }
+
+  public void setUrl(Uri url) {
+    this.url = url.toString();
+  }
+
+  protected String getUrl() {
+    return "\n"+this.url;
   }
 
   private static String getDecoderCountersBufferCountString(DecoderCounters counters) {

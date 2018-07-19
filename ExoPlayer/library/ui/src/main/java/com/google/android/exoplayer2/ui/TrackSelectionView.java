@@ -241,7 +241,17 @@ public class TrackSelectionView extends LinearLayout {
         CheckedTextView trackView =
             (CheckedTextView) inflater.inflate(trackViewLayoutId, this, false);
         trackView.setBackgroundResource(selectableItemBackgroundResourceId);
-        trackView.setText(trackNameProvider.getTrackName(group.getFormat(trackIndex)));
+        String txt = trackNameProvider.getTrackName(group.getFormat(trackIndex));
+        // ADF: Get the ID if the current txt is Unknown
+        // TODO: For fmt.sampleMimeType audio try to use another id
+        com.google.android.exoplayer2.Format fmt = group.getFormat(trackIndex);
+        if(fmt!=null && fmt.id!=null && fmt.id.length()>0 && (fmt.sampleMimeType==null || fmt.sampleMimeType.toLowerCase().indexOf("text")==0)) {
+          if(txt==null || txt.toLowerCase().compareTo("unknown")==0) {
+            txt="-";
+          }
+          txt=String.format("%s (%s)",group.getFormat(trackIndex).id,txt);
+        }
+        trackView.setText(txt);
         if (trackInfo.getTrackSupport(rendererIndex, groupIndex, trackIndex)
             == RendererCapabilities.FORMAT_HANDLED) {
           trackView.setFocusable(true);

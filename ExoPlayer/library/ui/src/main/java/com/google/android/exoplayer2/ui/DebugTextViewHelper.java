@@ -154,7 +154,7 @@ public class DebugTextViewHelper extends Player.DefaultEventListener implements 
   }
 
   public void setUrl(Uri url) {
-    this.url = url.toString();
+    this.url = url.toString().split("\\?")[0];
   }
 
   protected String getUrl() {

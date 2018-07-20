@@ -23,6 +23,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.View;
@@ -83,7 +84,6 @@ import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.ui.TrackSelectionView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
-import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
@@ -102,6 +102,8 @@ import java.util.UUID;
 /** An activity that plays media using {@link SimpleExoPlayer}. */
 public class PlayerActivity extends Activity
     implements OnClickListener, PlaybackPreparer, PlayerControlView.VisibilityListener {
+
+  private static final String TAG = "PlayerActivity";
 
   public static final String DRM_SCHEME_EXTRA = "drm_scheme";
   public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
@@ -451,9 +453,10 @@ public class PlayerActivity extends Activity
 
   private MediaSource appendAudio(MediaSource mediaSource, Intent intent) {
     try {
+        @SuppressWarnings("unchecked")
         HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra(AUDIO_URL);
         if (hashMap != null && hashMap.size() > 0) {
-            List<MediaSource> mediaSources = new ArrayList<MediaSource>();
+            List<MediaSource> mediaSources = new ArrayList<>();
             mediaSources.add(mediaSource);
             for (Map.Entry<String, String> audio : hashMap.entrySet()) {
                 MediaSource audioMediaSource = getAudio(audio);
@@ -464,7 +467,7 @@ public class PlayerActivity extends Activity
             return new LoopingMediaSource(new MergingMediaSource(mediaSources.toArray(new MediaSource[mediaSources.size()])));
         }
     } catch(Exception e) {
-
+      Log.e(TAG, "appendAudio EX:"+e);
     }
     return mediaSource;
   }
@@ -472,17 +475,17 @@ public class PlayerActivity extends Activity
   private MediaSource getAudio(Map.Entry<String, String> audio) {
     String url = audio.getValue();
     if (url != null && url.length() > 0) {
-      ExtractorMediaSource ret = new ExtractorMediaSource.Factory(mediaDataSourceFactory).createMediaSource(Uri.parse(url));
-      return ret;
+      return new ExtractorMediaSource.Factory(mediaDataSourceFactory).createMediaSource(Uri.parse(url));
     }
     return null;
-  };
+  }
 
   private MediaSource appendSubtitles(MediaSource mediaSource, Intent intent) {
     try {
+      @SuppressWarnings("unchecked")
       HashMap<String, String> hashMap = (HashMap<String, String>)intent.getSerializableExtra(SUBTITLES_URL);
       if (hashMap != null && hashMap.size() > 0) {
-        List<MediaSource> mediaSources = new ArrayList<MediaSource>();
+        List<MediaSource> mediaSources = new ArrayList<>();
         mediaSources.add(mediaSource);
         for (Map.Entry<String, String> subtitle : hashMap.entrySet()) {
           MediaSource subtitleMediaSource = getSubtitle(subtitle);
@@ -493,7 +496,7 @@ public class PlayerActivity extends Activity
         return new LoopingMediaSource(new MergingMediaSource(mediaSources.toArray(new MediaSource[mediaSources.size()])));
       }
     } catch(Exception e) {
-
+      Log.e(TAG, "appendSubtitles EX:"+e);
     }
     return mediaSource;
   }

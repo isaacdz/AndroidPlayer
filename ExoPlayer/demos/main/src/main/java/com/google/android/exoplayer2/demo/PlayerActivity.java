@@ -505,7 +505,7 @@ public class PlayerActivity extends Activity
               url.indexOf(".vtt") > 0 ? MimeTypes.TEXT_VTT : "" ;
       if(mimeType.isEmpty()) {
         showToast("Invalid subtitles [ format should be srt or vtt ]");
-        return mediaSource;
+        return null;
       }
       String id = subtitle.getKey();
       Uri srtUri = Uri.parse(url);

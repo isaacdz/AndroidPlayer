@@ -282,7 +282,7 @@ public class SampleChooserActivity extends Activity
                 new Runnable() {
                   public void run() {
                     if (UriSample.class.isInstance(sample)) {
-                      Toast.makeText(getApplicationContext(), ((UriSample)sample).uri.toString(), Toast.LENGTH_LONG).show();
+                      Toast.makeText(getApplicationContext(), ((UriSample)sample).uri.toString().split("\\?")[0], Toast.LENGTH_LONG).show();
                     }
                   }
                 },

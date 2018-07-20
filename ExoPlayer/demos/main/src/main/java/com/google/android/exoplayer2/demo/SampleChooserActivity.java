@@ -231,18 +231,27 @@ public class SampleChooserActivity extends Activity
       }
 
       JSONObject subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL);
+      if(subtitle==null) subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL+"s");
       if(subtitle!=null) {
         String subtitleUrl = subtitle.optString("url",null);
         if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
           parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
         }
+        else {
+          parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitle);
+
+        }
       }
 
       JSONObject audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL);
+      if(audio==null) audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL+"s");
       if(audio!=null) {
         String audioUrl = audio.optString("url",null);
         if(audioUrl!=null && audioUrl.length()>0 && !audioUrl.equals("null")) {
-          parsedJson.putOpt(PlayerActivity.AUDIO_URL,audioUrl);
+          parsedJson.putOpt(PlayerActivity.AUDIO_URL, audioUrl);
+        }
+        else {
+          parsedJson.putOpt(PlayerActivity.AUDIO_URL,audio);
         }
       }
 
@@ -547,9 +556,11 @@ public class SampleChooserActivity extends Activity
             uri = Uri.parse(reader.nextString());
             break;
           case "subtitle":
+          case "subtitles":
             parseAudioOrSubtitle(reader, subtitleMap);
             break;
           case "audio":
+          case "audios":
             parseAudioOrSubtitle(reader, audioMap);
             break;
           case "extension":

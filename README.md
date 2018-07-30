@@ -51,7 +51,7 @@ Installing/reinstalling
 
  - connect the device in adb mode ( adb connect IP:5555 )
  - adb uninstall com.google.android.exoplayer2.demo
- - adb install ./ExoPlayer/demos/exoPlayback.2.1.apk
+ - adb install ./ExoPlayer/demos/exoPlayback.2.2.apk
  
 ----------
 

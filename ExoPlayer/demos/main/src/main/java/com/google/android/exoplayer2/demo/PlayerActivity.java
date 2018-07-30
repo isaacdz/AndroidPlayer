@@ -566,7 +566,7 @@ public class PlayerActivity extends Activity
     HttpDataSource.Factory licenseDataSourceFactory =
         ((DemoApplication) getApplication()).buildHttpDataSourceFactory(/* listener= */ null);
     HttpMediaDrmCallback drmCallback =
-        new HttpMediaDrmCallback(licenseUrl, licenseDataSourceFactory);
+        new HttpMediaDrmCallback(licenseUrl, true, licenseDataSourceFactory);
     // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
     java.util.HashMap<String, String> optionalKeyRequestParameters = null;
     if (keyRequestPropertiesArray != null) {

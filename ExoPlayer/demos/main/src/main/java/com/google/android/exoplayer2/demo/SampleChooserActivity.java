@@ -44,6 +44,8 @@ import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
+
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
@@ -231,21 +233,28 @@ public class SampleChooserActivity extends Activity
         parsedJson.putOpt("extension","mpd");
       }
 
-      JSONObject subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL);
-      if(subtitle==null) subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL+"s");
-      if(subtitle!=null) {
-        String subtitleUrl = subtitle.optString("url",null);
-        if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
-          parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
-        }
-        else {
-          parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitle);
-
+      JSONArray subtitlesArr = jsonObj.optJSONArray("all_"+PlayerActivity.SUBTITLES_URL+"s");
+      if(subtitlesArr==null) subtitlesArr = jsonObj.optJSONArray(PlayerActivity.SUBTITLES_URL+"s");
+      if(subtitlesArr==null) {
+        JSONObject subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL);
+        if(subtitle==null) subtitle = jsonObj.optJSONObject(PlayerActivity.SUBTITLES_URL+"s");
+        if(subtitle!=null) {
+          String subtitleUrl = subtitle.optString("url",null);
+          if(subtitleUrl!=null && subtitleUrl.length()>0 && !subtitleUrl.equals("null")) {
+            parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitleUrl);
+          }
+          else {
+            parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitle);
+          }
         }
       }
+      else {
+        parsedJson.putOpt(PlayerActivity.SUBTITLES_URL,subtitlesArr);
+      }
 
-      JSONObject audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL);
+      JSONObject audio = jsonObj.optJSONObject("all_"+PlayerActivity.AUDIO_URL+"s");
       if(audio==null) audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL+"s");
+      if(audio==null) audio = jsonObj.optJSONObject(PlayerActivity.AUDIO_URL);
       if(audio!=null) {
         String audioUrl = audio.optString("url",null);
         if(audioUrl!=null && audioUrl.length()>0 && !audioUrl.equals("null")) {
@@ -569,10 +578,12 @@ public class SampleChooserActivity extends Activity
             break;
           case "subtitle":
           case "subtitles":
+          case "all_subtitles":
             parseAudioOrSubtitle(reader, subtitleMap);
             break;
           case "audio":
           case "audios":
+          case "all_audios":
             parseAudioOrSubtitle(reader, audioMap);
             break;
           case "extension":
@@ -681,13 +692,54 @@ public class SampleChooserActivity extends Activity
         reader.beginArray();
         int i = 0;
         while (reader.hasNext()) {
-          theMap.put(String.valueOf(++i), reader.nextString());
+          // Get string or object
+          String name = String.valueOf(++i);
+          getUrlFromReader(reader, name, theMap);
         }
         reader.endArray();
       } catch (Exception e) {
       }
     }
 
+    private void getUrlFromReader(JsonReader reader, String name, Map<String, String> theMap) {
+      String value = "";
+      try {
+        value = reader.nextString();
+        theMap.put(name, value);
+      } catch (Exception e1) {
+        try {
+          name = "";
+          reader.beginObject();
+          while (reader.hasNext()) {
+            String k = reader.nextName();
+            switch (k) {
+              case "language":
+              case "locale":
+                if (name.length() > 0) name += " ";
+                name += reader.nextString();
+                break;
+              case "forced":
+                if (reader.nextBoolean() == true) {
+                  if (name.length() > 0) name += " ";
+                  name += "forced";
+                }
+                break;
+              case "url":
+                value = reader.nextString();
+                break;
+              default:
+                reader.skipValue();
+                break;
+            }
+          }
+          if (value != null && value.length() > 0) {
+            theMap.put(name, value);
+          }
+          reader.endObject();
+        } catch (Exception e2) {
+        }
+      }
+    }
 
 
     private SampleGroup getGroup(String groupName, List<SampleGroup> groups) {

@@ -245,7 +245,7 @@ public class TrackSelectionView extends LinearLayout {
         // ADF: Get the ID if the current txt is Unknown
         // TODO: For fmt.sampleMimeType audio try to use another id
         com.google.android.exoplayer2.Format fmt = group.getFormat(trackIndex);
-        if(fmt!=null && fmt.id!=null && fmt.id.length()>0 && (fmt.sampleMimeType==null || fmt.sampleMimeType.toLowerCase().indexOf("text")==0)) {
+        if(fmt!=null && fmt.id!=null && fmt.id.length()>0 && (fmt.sampleMimeType==null || fmt.sampleMimeType.toLowerCase().indexOf("text")==0 || fmt.sampleMimeType.toLowerCase().indexOf("application")==0)) {
           if(txt==null || txt.toLowerCase().compareTo("unknown")==0 || txt.toLowerCase().compareTo("desconocido")==0) {
               txt=group.getFormat(trackIndex).id;
           }

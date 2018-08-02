@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.JsonReader;
 import android.util.Log;
@@ -349,12 +350,23 @@ public class SampleChooserActivity extends Activity
     return ret+suffix;
   }
 
+  private String getVersionInfo() {
+      String info = "";
+      try {
+        android.content.pm.ApplicationInfo appInfo = getApplicationContext().getPackageManager().getApplicationInfo(getApplicationContext().getPackageName(), 0);
+        long time = new java.io.File(appInfo.sourceDir).lastModified();
+        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat("yyMMddHHmm");
+        info = formatter.format(time) + " ";
+      } catch (Exception e) {
+      }
+      return "["+info+BuildConfig.VERSION_NAME+"]";
+  }
   private void loadInfo() {
     if(!loadData)
     {
       return;
     }
-    setTitle(getLocalIpAddress(true, false)+" | 0 - Reload JSON");
+    setTitle(getLocalIpAddress(true, false)+" | 0-Refresh "+getVersionInfo());
     loadData = false;
     Intent intent = getIntent();
     String dataUri = intent.getDataString();

@@ -35,6 +35,7 @@ import com.google.android.exoplayer2.util.NalUnitUtil;
 import com.google.android.exoplayer2.util.ParsableByteArray;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
+import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayDeque;
@@ -46,35 +47,30 @@ import java.util.List;
  */
 public final class Mp4Extractor implements Extractor, SeekMap {
 
-  /**
-   * Factory for {@link Mp4Extractor} instances.
-   */
-  public static final ExtractorsFactory FACTORY = new ExtractorsFactory() {
-
-    @Override
-    public Extractor[] createExtractors() {
-      return new Extractor[] {new Mp4Extractor()};
-    }
-
-  };
+  /** Factory for {@link Mp4Extractor} instances. */
+  public static final ExtractorsFactory FACTORY = () -> new Extractor[] {new Mp4Extractor()};
 
   /**
-   * Flags controlling the behavior of the extractor.
+   * Flags controlling the behavior of the extractor. Possible flag value is {@link
+   * #FLAG_WORKAROUND_IGNORE_EDIT_LISTS}.
    */
+  @Documented
   @Retention(RetentionPolicy.SOURCE)
-  @IntDef(flag = true, value = {FLAG_WORKAROUND_IGNORE_EDIT_LISTS})
+  @IntDef(
+      flag = true,
+      value = {FLAG_WORKAROUND_IGNORE_EDIT_LISTS})
   public @interface Flags {}
   /**
    * Flag to ignore any edit lists in the stream.
    */
   public static final int FLAG_WORKAROUND_IGNORE_EDIT_LISTS = 1;
 
-  /**
-   * Parser states.
-   */
+  /** Parser states. */
+  @Documented
   @Retention(RetentionPolicy.SOURCE)
   @IntDef({STATE_READING_ATOM_HEADER, STATE_READING_ATOM_PAYLOAD, STATE_READING_SAMPLE})
   private @interface State {}
+
   private static final int STATE_READING_ATOM_HEADER = 0;
   private static final int STATE_READING_ATOM_PAYLOAD = 1;
   private static final int STATE_READING_SAMPLE = 2;
@@ -391,25 +387,14 @@ public final class Mp4Extractor implements Extractor, SeekMap {
       }
     }
 
-    for (int i = 0; i < moov.containerChildren.size(); i++) {
-      Atom.ContainerAtom atom = moov.containerChildren.get(i);
-      if (atom.type != Atom.TYPE_trak) {
-        continue;
-      }
+    boolean ignoreEditLists = (flags & FLAG_WORKAROUND_IGNORE_EDIT_LISTS) != 0;
+    ArrayList<TrackSampleTable> trackSampleTables =
+        getTrackSampleTables(moov, gaplessInfoHolder, ignoreEditLists);
 
-      Track track = AtomParsers.parseTrak(atom, moov.getLeafAtomOfType(Atom.TYPE_mvhd),
-          C.TIME_UNSET, null, (flags & FLAG_WORKAROUND_IGNORE_EDIT_LISTS) != 0, isQuickTime);
-      if (track == null) {
-        continue;
-      }
-
-      Atom.ContainerAtom stblAtom = atom.getContainerAtomOfType(Atom.TYPE_mdia)
-          .getContainerAtomOfType(Atom.TYPE_minf).getContainerAtomOfType(Atom.TYPE_stbl);
-      TrackSampleTable trackSampleTable = AtomParsers.parseStbl(track, stblAtom, gaplessInfoHolder);
-      if (trackSampleTable.sampleCount == 0) {
-        continue;
-      }
-
+    int trackCount = trackSampleTables.size();
+    for (int i = 0; i < trackCount; i++) {
+      TrackSampleTable trackSampleTable = trackSampleTables.get(i);
+      Track track = trackSampleTable.track;
       Mp4Track mp4Track = new Mp4Track(track, trackSampleTable,
           extractorOutput.track(i, track.type));
       // Each sample has up to three bytes of overhead for the start code that replaces its length.
@@ -443,6 +428,39 @@ public final class Mp4Extractor implements Extractor, SeekMap {
 
     extractorOutput.endTracks();
     extractorOutput.seekMap(this);
+  }
+
+  private ArrayList<TrackSampleTable> getTrackSampleTables(
+      ContainerAtom moov, GaplessInfoHolder gaplessInfoHolder, boolean ignoreEditLists)
+      throws ParserException {
+    ArrayList<TrackSampleTable> trackSampleTables = new ArrayList<>();
+    for (int i = 0; i < moov.containerChildren.size(); i++) {
+      Atom.ContainerAtom atom = moov.containerChildren.get(i);
+      if (atom.type != Atom.TYPE_trak) {
+        continue;
+      }
+      Track track =
+          AtomParsers.parseTrak(
+              atom,
+              moov.getLeafAtomOfType(Atom.TYPE_mvhd),
+              /* duration= */ C.TIME_UNSET,
+              /* drmInitData= */ null,
+              ignoreEditLists,
+              isQuickTime);
+      if (track == null) {
+        continue;
+      }
+      Atom.ContainerAtom stblAtom =
+          atom.getContainerAtomOfType(Atom.TYPE_mdia)
+              .getContainerAtomOfType(Atom.TYPE_minf)
+              .getContainerAtomOfType(Atom.TYPE_stbl);
+      TrackSampleTable trackSampleTable = AtomParsers.parseStbl(track, stblAtom, gaplessInfoHolder);
+      if (trackSampleTable.sampleCount == 0) {
+        continue;
+      }
+      trackSampleTables.add(trackSampleTable);
+    }
+    return trackSampleTables;
   }
 
   /**

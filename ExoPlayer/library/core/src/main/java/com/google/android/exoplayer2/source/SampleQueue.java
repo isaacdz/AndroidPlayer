@@ -30,10 +30,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * A queue of media samples.
- */
-public final class SampleQueue implements TrackOutput {
+/** A queue of media samples. */
+public class SampleQueue implements TrackOutput {
 
   /**
    * A listener for changes to the upstream format.
@@ -568,18 +566,22 @@ public final class SampleQueue implements TrackOutput {
   }
 
   @Override
-  public void sampleMetadata(long timeUs, @C.BufferFlags int flags, int size, int offset,
-      CryptoData cryptoData) {
+  public void sampleMetadata(
+      long timeUs,
+      @C.BufferFlags int flags,
+      int size,
+      int offset,
+      @Nullable CryptoData cryptoData) {
     if (pendingFormatAdjustment) {
       format(lastUnadjustedFormat);
     }
+    timeUs += sampleOffsetUs;
     if (pendingSplice) {
       if ((flags & C.BUFFER_FLAG_KEY_FRAME) == 0 || !metadataQueue.attemptSplice(timeUs)) {
         return;
       }
       pendingSplice = false;
     }
-    timeUs += sampleOffsetUs;
     long absoluteOffset = totalBytesWritten - size - offset;
     metadataQueue.commitSample(timeUs, flags, absoluteOffset, size, cryptoData);
   }

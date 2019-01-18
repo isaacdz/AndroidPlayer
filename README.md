@@ -1,5 +1,17 @@
 # AndroidPlayer
 
+----------
+TODO
+----------
+
+ - From from https://github.com/google/ExoPlayer origin/release-v2
+ - Modify comments
+
+
+----------
+Info
+----------
+
 Use ExoPlayer to do your tests
 If you need you can modify JavaWebSocket or pull changes from the original repo
 
@@ -51,7 +63,7 @@ Installing/reinstalling
 
  - connect the device in adb mode ( adb connect IP:5555 )
  - adb uninstall com.google.android.exoplayer2.demo
- - adb install ./ExoPlayer/demos/exoPlayback.2.2.apk
+ - adb install ./ExoPlayer/demos/exoPlayback.2.3_Exo_2.9.3.apk
  
 ----------
 

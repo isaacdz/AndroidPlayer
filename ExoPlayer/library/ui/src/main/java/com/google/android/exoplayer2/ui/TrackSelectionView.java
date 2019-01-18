@@ -19,7 +19,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.res.TypedArray;
 import android.support.annotation.AttrRes;
 import android.support.annotation.Nullable;
@@ -80,13 +79,7 @@ public class TrackSelectionView extends LinearLayout {
 
     final TrackSelectionView selectionView = dialogView.findViewById(R.id.exo_track_selection_view);
     selectionView.init(trackSelector, rendererIndex);
-    Dialog.OnClickListener okClickListener =
-        new Dialog.OnClickListener() {
-          @Override
-          public void onClick(DialogInterface dialog, int which) {
-            selectionView.applySelection();
-          }
-        };
+    Dialog.OnClickListener okClickListener = (dialog, which) -> selectionView.applySelection();
 
     AlertDialog dialog =
         builder
@@ -241,19 +234,7 @@ public class TrackSelectionView extends LinearLayout {
         CheckedTextView trackView =
             (CheckedTextView) inflater.inflate(trackViewLayoutId, this, false);
         trackView.setBackgroundResource(selectableItemBackgroundResourceId);
-        String txt = trackNameProvider.getTrackName(group.getFormat(trackIndex));
-        // ADF: Get the ID if the current txt is Unknown
-        // TODO: For fmt.sampleMimeType audio try to use another id
-        com.google.android.exoplayer2.Format fmt = group.getFormat(trackIndex);
-        if(fmt!=null && fmt.id!=null && fmt.id.length()>0 && (fmt.sampleMimeType==null || fmt.sampleMimeType.toLowerCase().indexOf("text")==0 || fmt.sampleMimeType.toLowerCase().indexOf("application")==0)) {
-          if(txt==null || txt.toLowerCase().compareTo("unknown")==0 || txt.toLowerCase().compareTo("desconocido")==0) {
-              txt=group.getFormat(trackIndex).id;
-          }
-          else {
-            txt=String.format("%s [%s]",group.getFormat(trackIndex).id,txt);
-          }
-        }
-        trackView.setText(txt);
+        trackView.setText(trackNameProvider.getTrackName(group.getFormat(trackIndex)));
         if (trackInfo.getTrackSupport(rendererIndex, groupIndex, trackIndex)
             == RendererCapabilities.FORMAT_HANDLED) {
           trackView.setFocusable(true);

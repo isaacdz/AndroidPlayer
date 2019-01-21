@@ -594,8 +594,9 @@ public class PlayerActivity extends Activity
       throws UnsupportedDrmException {
     HttpDataSource.Factory licenseDataSourceFactory =
         ((DemoApplication) getApplication()).buildHttpDataSourceFactory();
+    boolean licenseUrlIsNotEmpty = licenseUrl != null && licenseUrl.trim().length() > 0;
     HttpMediaDrmCallback drmCallback =
-        new HttpMediaDrmCallback(licenseUrl, licenseDataSourceFactory);
+        new HttpMediaDrmCallback(licenseUrl, licenseUrlIsNotEmpty, licenseDataSourceFactory);
     // WUAKI: Append optionalKeyRequestParameters PR CUSTOM DATA
     java.util.HashMap<String, String> optionalKeyRequestParameters = null;
     if (keyRequestPropertiesArray != null) {

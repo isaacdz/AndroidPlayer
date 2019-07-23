@@ -810,6 +810,7 @@ public class PlayerActivity extends AppCompatActivity
       if (e.type == ExoPlaybackException.TYPE_RENDERER) {
         Exception cause = e.getRendererException();
         if (cause instanceof DecoderInitializationException) {
+
           // Special case for decoder initialization failures.
           DecoderInitializationException decoderInitializationException =
               (DecoderInitializationException) cause;
@@ -830,6 +831,14 @@ public class PlayerActivity extends AppCompatActivity
                     R.string.error_instantiating_decoder,
                     decoderInitializationException.decoderName);
           }
+        }
+      }
+      else {
+        try {
+          errorString = errorString + " EX: " + e.getLocalizedMessage();
+        }
+        catch(Throwable t) {
+          errorString = errorString + " EX: -";
         }
       }
       return Pair.create(0, errorString);

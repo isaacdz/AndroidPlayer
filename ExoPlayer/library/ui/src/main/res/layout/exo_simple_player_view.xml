@@ -47,6 +47,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:gravity="center"
+        android:inputType="textMultiLine"
         android:background="@color/exo_error_message_background_color"
         android:padding="16dp"/>
 

@@ -17,8 +17,7 @@ package com.google.android.exoplayer2.source;
 
 import android.net.Uri;
 import android.os.Handler;
-import android.support.annotation.Nullable;
-import com.google.android.exoplayer2.ExoPlayer;
+import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.upstream.Allocator;
@@ -139,12 +138,12 @@ public final class SingleSampleMediaSource extends BaseMediaSource {
     }
 
     /**
-     * Returns a new {@link ExtractorMediaSource} using the current parameters.
+     * Returns a new {@link SingleSampleMediaSource} using the current parameters.
      *
      * @param uri The {@link Uri}.
      * @param format The {@link Format} of the media stream.
      * @param durationUs The duration of the media stream in microseconds.
-     * @return The new {@link ExtractorMediaSource}.
+     * @return The new {@link SingleSampleMediaSource}.
      */
     public SingleSampleMediaSource createMediaSource(Uri uri, Format format, long durationUs) {
       isCreateCalled = true;
@@ -289,8 +288,7 @@ public final class SingleSampleMediaSource extends BaseMediaSource {
     this.loadErrorHandlingPolicy = loadErrorHandlingPolicy;
     this.treatLoadErrorsAsEndOfStream = treatLoadErrorsAsEndOfStream;
     this.tag = tag;
-    dataSpec =
-        new DataSpec(uri, DataSpec.FLAG_ALLOW_GZIP | DataSpec.FLAG_ALLOW_CACHING_UNKNOWN_LENGTH);
+    dataSpec = new DataSpec(uri, DataSpec.FLAG_ALLOW_GZIP);
     timeline =
         new SinglePeriodTimeline(durationUs, /* isSeekable= */ true, /* isDynamic= */ false, tag);
   }
@@ -304,10 +302,7 @@ public final class SingleSampleMediaSource extends BaseMediaSource {
   }
 
   @Override
-  public void prepareSourceInternal(
-      ExoPlayer player,
-      boolean isTopLevelSource,
-      @Nullable TransferListener mediaTransferListener) {
+  public void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
     transferListener = mediaTransferListener;
     refreshSourceInfo(timeline, /* manifest= */ null);
   }
@@ -318,7 +313,7 @@ public final class SingleSampleMediaSource extends BaseMediaSource {
   }
 
   @Override
-  public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator) {
+  public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
     return new SingleSampleMediaPeriod(
         dataSpec,
         dataSourceFactory,

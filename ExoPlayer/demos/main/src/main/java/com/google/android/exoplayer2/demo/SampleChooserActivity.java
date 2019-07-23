@@ -15,14 +15,14 @@
  */
 package com.google.android.exoplayer2.demo;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import android.util.JsonReader;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -38,6 +38,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.exoplayer2.ParserException;
+import com.google.android.exoplayer2.RenderersFactory;
 import com.google.android.exoplayer2.offline.DownloadService;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSourceInputStream;
@@ -46,8 +47,10 @@ import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -60,7 +63,7 @@ import java.util.List;
 import java.util.Map;
 
 /** An activity for selecting from a list of media samples. */
-public class SampleChooserActivity extends Activity
+public class SampleChooserActivity extends AppCompatActivity
     implements DownloadTracker.Listener, OnChildClickListener {
 
   private static final String TAG = "SampleChooserActivity";
@@ -81,6 +84,13 @@ public class SampleChooserActivity extends Activity
     ExpandableListView sampleListView = findViewById(R.id.sample_list);
     sampleListView.setAdapter(sampleAdapter);
     sampleListView.setOnChildClickListener(this);
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+      android.media.MediaCodecList mcl = new android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS);
+      for (android.media.MediaCodecInfo info : mcl.getCodecInfos()) {
+        android.util.Log.v("ADF","ADF *** " + info.getName() + ": " + android.text.TextUtils.join(", ", info.getSupportedTypes()));
+      }
+    }
 
     try {
       new HTTPListener(this, this.getApplicationContext(),new WSListener.Reader() {
@@ -301,7 +311,6 @@ public class SampleChooserActivity extends Activity
       }
     });
 
-
     startActivity(sample.buildIntent(self,
             isNonNullAndChecked(preferExtensionDecodersMenuItem),
             isNonNullAndChecked(randomAbrMenuItem)
@@ -485,7 +494,15 @@ public class SampleChooserActivity extends Activity
           .show();
     } else {
       UriSample uriSample = (UriSample) sample;
-      downloadTracker.toggleDownload(this, sample.name, uriSample.uri, uriSample.extension);
+      RenderersFactory renderersFactory =
+          ((DemoApplication) getApplication())
+              .buildRenderersFactory(isNonNullAndChecked(preferExtensionDecodersMenuItem));
+      downloadTracker.toggleDownload(
+          getSupportFragmentManager(),
+          sample.name,
+          uriSample.uri,
+          uriSample.extension,
+          renderersFactory);
     }
   }
 
@@ -682,8 +699,7 @@ public class SampleChooserActivity extends Activity
               ? null
               : new DrmInfo(drmScheme, drmLicenseUrl, drmKeyRequestProperties, drmMultiSession);
       if (playlistSamples != null) {
-        UriSample[] playlistSamplesArray = playlistSamples.toArray(
-            new UriSample[playlistSamples.size()]);
+        UriSample[] playlistSamplesArray = playlistSamples.toArray(new UriSample[0]);
         return new PlaylistSample(sampleName, drmInfo, playlistSamplesArray);
       } else {
         return new UriSample(

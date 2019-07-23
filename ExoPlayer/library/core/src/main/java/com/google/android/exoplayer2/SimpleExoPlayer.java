@@ -23,7 +23,7 @@ import android.media.MediaCodec;
 import android.media.PlaybackParams;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -48,8 +48,10 @@ import com.google.android.exoplayer2.text.TextOutput;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
+import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Clock;
 import com.google.android.exoplayer2.util.Log;
+import com.google.android.exoplayer2.util.PriorityTaskManager;
 import com.google.android.exoplayer2.util.Util;
 import com.google.android.exoplayer2.video.VideoFrameMetadataListener;
 import com.google.android.exoplayer2.video.VideoRendererEventListener;
@@ -63,7 +65,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * An {@link ExoPlayer} implementation that uses default {@link Renderer} components. Instances can
  * be obtained from {@link ExoPlayerFactory}.
  */
-@TargetApi(16)
 public class SimpleExoPlayer extends BasePlayer
     implements ExoPlayer,
         Player.AudioComponent,
@@ -94,26 +95,28 @@ public class SimpleExoPlayer extends BasePlayer
 
   private final AudioFocusManager audioFocusManager;
 
-  private Format videoFormat;
-  private Format audioFormat;
+  @Nullable private Format videoFormat;
+  @Nullable private Format audioFormat;
 
-  private Surface surface;
+  @Nullable private Surface surface;
   private boolean ownsSurface;
   private @C.VideoScalingMode int videoScalingMode;
-  private SurfaceHolder surfaceHolder;
-  private TextureView textureView;
+  @Nullable private SurfaceHolder surfaceHolder;
+  @Nullable private TextureView textureView;
   private int surfaceWidth;
   private int surfaceHeight;
-  private DecoderCounters videoDecoderCounters;
-  private DecoderCounters audioDecoderCounters;
+  @Nullable private DecoderCounters videoDecoderCounters;
+  @Nullable private DecoderCounters audioDecoderCounters;
   private int audioSessionId;
   private AudioAttributes audioAttributes;
   private float audioVolume;
-  private MediaSource mediaSource;
+  @Nullable private MediaSource mediaSource;
   private List<Cue> currentCues;
-  private VideoFrameMetadataListener videoFrameMetadataListener;
-  private CameraMotionListener cameraMotionListener;
+  @Nullable private VideoFrameMetadataListener videoFrameMetadataListener;
+  @Nullable private CameraMotionListener cameraMotionListener;
   private boolean hasNotifiedFullWrongThreadWarning;
+  @Nullable private PriorityTaskManager priorityTaskManager;
+  private boolean isPriorityTaskManagerRegistered;
 
   /**
    * @param context A {@link Context}.
@@ -234,6 +237,7 @@ public class SimpleExoPlayer extends BasePlayer
         new ExoPlayerImpl(renderers, trackSelector, loadControl, bandwidthMeter, clock, looper);
     analyticsCollector = analyticsCollectorFactory.createAnalyticsCollector(player, clock);
     addListener(analyticsCollector);
+    addListener(componentListener);
     videoDebugListeners.add(analyticsCollector);
     videoListeners.add(analyticsCollector);
     audioDebugListeners.add(analyticsCollector);
@@ -540,6 +544,31 @@ public class SimpleExoPlayer extends BasePlayer
   }
 
   /**
+   * Sets a {@link PriorityTaskManager}, or null to clear a previously set priority task manager.
+   *
+   * <p>The priority {@link C#PRIORITY_PLAYBACK} will be set while the player is loading.
+   *
+   * @param priorityTaskManager The {@link PriorityTaskManager}, or null to clear a previously set
+   *     priority task manager.
+   */
+  public void setPriorityTaskManager(@Nullable PriorityTaskManager priorityTaskManager) {
+    verifyApplicationThread();
+    if (Util.areEqual(this.priorityTaskManager, priorityTaskManager)) {
+      return;
+    }
+    if (isPriorityTaskManagerRegistered) {
+      Assertions.checkNotNull(this.priorityTaskManager).remove(C.PRIORITY_PLAYBACK);
+    }
+    if (priorityTaskManager != null && isLoading()) {
+      priorityTaskManager.add(C.PRIORITY_PLAYBACK);
+      isPriorityTaskManagerRegistered = true;
+    } else {
+      isPriorityTaskManagerRegistered = false;
+    }
+    this.priorityTaskManager = priorityTaskManager;
+  }
+
+  /**
    * Sets the {@link PlaybackParams} governing audio playback.
    *
    * @deprecated Use {@link #setPlaybackParameters(PlaybackParameters)}.
@@ -558,30 +587,26 @@ public class SimpleExoPlayer extends BasePlayer
     setPlaybackParameters(playbackParameters);
   }
 
-  /**
-   * Returns the video format currently being played, or null if no video is being played.
-   */
+  /** Returns the video format currently being played, or null if no video is being played. */
+  @Nullable
   public Format getVideoFormat() {
     return videoFormat;
   }
 
-  /**
-   * Returns the audio format currently being played, or null if no audio is being played.
-   */
+  /** Returns the audio format currently being played, or null if no audio is being played. */
+  @Nullable
   public Format getAudioFormat() {
     return audioFormat;
   }
 
-  /**
-   * Returns {@link DecoderCounters} for video, or null if no video is being played.
-   */
+  /** Returns {@link DecoderCounters} for video, or null if no video is being played. */
+  @Nullable
   public DecoderCounters getVideoDecoderCounters() {
     return videoDecoderCounters;
   }
 
-  /**
-   * Returns {@link DecoderCounters} for audio, or null if no audio is being played.
-   */
+  /** Returns {@link DecoderCounters} for audio, or null if no audio is being played. */
+  @Nullable
   public DecoderCounters getAudioDecoderCounters() {
     return audioDecoderCounters;
   }
@@ -964,6 +989,11 @@ public class SimpleExoPlayer extends BasePlayer
   }
 
   @Override
+  public void setForegroundMode(boolean foregroundMode) {
+    player.setForegroundMode(foregroundMode);
+  }
+
+  @Override
   public void stop(boolean reset) {
     verifyApplicationThread();
     player.stop(reset);
@@ -980,6 +1010,7 @@ public class SimpleExoPlayer extends BasePlayer
 
   @Override
   public void release() {
+    verifyApplicationThread();
     audioFocusManager.handleStop();
     player.release();
     removeSurfaceCallbacks();
@@ -992,6 +1023,10 @@ public class SimpleExoPlayer extends BasePlayer
     if (mediaSource != null) {
       mediaSource.removeEventListener(analyticsCollector);
       mediaSource = null;
+    }
+    if (isPriorityTaskManagerRegistered) {
+      Assertions.checkNotNull(priorityTaskManager).remove(C.PRIORITY_PLAYBACK);
+      isPriorityTaskManagerRegistered = false;
     }
     bandwidthMeter.removeEventListener(analyticsCollector);
     currentCues = Collections.emptyList();
@@ -1048,7 +1083,8 @@ public class SimpleExoPlayer extends BasePlayer
   }
 
   @Override
-  public @Nullable Object getCurrentManifest() {
+  @Nullable
+  public Object getCurrentManifest() {
     verifyApplicationThread();
     return player.getCurrentManifest();
   }
@@ -1195,8 +1231,7 @@ public class SimpleExoPlayer extends BasePlayer
       Log.w(
           TAG,
           "Player is accessed on the wrong thread. See "
-              + "https://google.github.io/ExoPlayer/faqs.html#"
-              + "what-do-player-is-accessed-on-the-wrong-thread-warnings-mean",
+              + "https://exoplayer.dev/issues/player-accessed-on-wrong-thread",
           hasNotifiedFullWrongThreadWarning ? null : new IllegalStateException());
       hasNotifiedFullWrongThreadWarning = true;
     }
@@ -1209,7 +1244,8 @@ public class SimpleExoPlayer extends BasePlayer
           MetadataOutput,
           SurfaceHolder.Callback,
           TextureView.SurfaceTextureListener,
-          AudioFocusManager.PlayerControl {
+          AudioFocusManager.PlayerControl,
+          Player.EventListener {
 
     // VideoRendererEventListener implementation
 
@@ -1418,6 +1454,21 @@ public class SimpleExoPlayer extends BasePlayer
     @Override
     public void executePlayerCommand(@AudioFocusManager.PlayerCommand int playerCommand) {
       updatePlayWhenReady(getPlayWhenReady(), playerCommand);
+    }
+
+    // Player.EventListener implementation.
+
+    @Override
+    public void onLoadingChanged(boolean isLoading) {
+      if (priorityTaskManager != null) {
+        if (isLoading && !isPriorityTaskManagerRegistered) {
+          priorityTaskManager.add(C.PRIORITY_PLAYBACK);
+          isPriorityTaskManagerRegistered = true;
+        } else if (!isLoading && isPriorityTaskManagerRegistered) {
+          priorityTaskManager.remove(C.PRIORITY_PLAYBACK);
+          isPriorityTaskManagerRegistered = false;
+        }
+      }
     }
   }
 }

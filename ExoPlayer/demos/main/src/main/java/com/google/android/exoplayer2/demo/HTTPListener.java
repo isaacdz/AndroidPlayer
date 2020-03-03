@@ -41,8 +41,8 @@ public class HTTPListener extends NanoHTTPD {
                 char[] passphrase = "123456789".toCharArray();
                 KeyStore e = KeyStore.getInstance(KeyStore.getDefaultType());
                 ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-                InputStream keystoreStream = classloader.getResourceAsStream("keystore.jks");
-                System.setProperty("javax.net.ssl.trustStore", classloader.getResource("keystore.jks").getPath());
+                InputStream keystoreStream = classloader.getResourceAsStream("keystore.https.jks");
+                // System.setProperty("javax.net.ssl.trustStore", classloader.getResource("keystore.https.jks").getPath());
                 if (keystoreStream != null) {
                     e.load(keystoreStream, passphrase);
                     KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());

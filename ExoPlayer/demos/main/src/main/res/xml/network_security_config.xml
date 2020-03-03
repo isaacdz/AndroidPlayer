@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">10.12.96.25</domain>
+    <domain includeSubdomains="true">wuaki.tv</domain>
+    <domain includeSubdomains="true">wuaki.org</domain>
+    <domain includeSubdomains="true">rakuten.tv</domain>
+    <domain includeSubdomains="true">amazonaws.com</domain>
+  </domain-config>
+</network-security-config>

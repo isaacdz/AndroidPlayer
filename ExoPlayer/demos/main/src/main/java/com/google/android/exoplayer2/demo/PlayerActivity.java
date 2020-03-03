@@ -168,6 +168,10 @@ public class PlayerActivity extends AppCompatActivity
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
+
+    android.util.Log.v("ADF","ADF checkSSLContext!!!!!!!!!");
+    this.checkSSLContext();
+
     String sphericalStereoMode = getIntent().getStringExtra(SPHERICAL_STEREO_MODE_EXTRA);
     if (sphericalStereoMode != null) {
       setTheme(R.style.PlayerTheme_Spherical);
@@ -213,7 +217,98 @@ public class PlayerActivity extends AppCompatActivity
       trackSelectorParameters = new DefaultTrackSelector.ParametersBuilder().build();
       clearStartPosition();
     }
+
+/*
+    /////////////////// WEVBIEW TEST ////////////////////////////////////////////
+    android.webkit.WebView webView = (android.webkit.WebView) findViewById(R.id.webView);
+    // webView.setBackgroundColor(0);
+    webView.getSettings().setJavaScriptEnabled(true);
+    webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
+    webView.setWebViewClient(new android.webkit.WebViewClient() {
+      public boolean shouldOverrideUrlLoading(android.webkit.WebView view, String url){
+        // do your handling codes here, which url is the requested url
+        // probably you need to open that url rather than redirect:
+        view.loadUrl(url);
+        return false; // then it is not handled by default action
+      }
+    });
+    webView.loadUrl("http://10.12.100.205:8000/background.html");
+    webView.addJavascriptInterface(this, "ExoPlayer");
+    webView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+    /////////////////// WEVBIEW TEST ////////////////////////////////////////////
+
+ */
   }
+
+
+  /**
+   * Trust every server - dont check for any certificate
+   */
+  private void checkSSLContext() {
+    try {
+      javax.net.ssl.SSLContext.getDefault();
+    } catch(java.security.NoSuchAlgorithmException e) {
+      this.setSSLContextManager();
+    }
+  }
+
+  private void setSSLContextManager() {
+    // Create a trust manager that does not validate certificate chains
+    javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[]{new javax.net.ssl.X509TrustManager() {
+      @Override
+      public void checkClientTrusted(
+          java.security.cert.X509Certificate[] x509Certificates,
+          String s) throws java.security.cert.CertificateException {
+      }
+
+      @Override
+      public void checkServerTrusted(
+          java.security.cert.X509Certificate[] x509Certificates,
+          String s) throws java.security.cert.CertificateException {
+      }
+
+      @Override
+      public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+        return new java.security.cert.X509Certificate[]{};
+      }
+    }};
+
+    // Install the all-trusting trust manager
+    try {
+      javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+      sc.init(null, trustAllCerts, new java.security.SecureRandom());
+      javax.net.ssl.HttpsURLConnection
+          .setDefaultSSLSocketFactory(sc.getSocketFactory());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  /////////////////// WEVBIEW TEST ////////////////////////////////////////////
+/*  @android.webkit.JavascriptInterface
+  public long getCurrentPosition(/ se pueden pasar callbacks?/) {
+    android.webkit.WebView webView = (android.webkit.WebView) findViewById(R.id.webView);
+
+      webView.post(new Runnable() {
+        public void run() {
+
+          if(android.os.Build.VERSION.SDK_INT >= 19) {
+            long time = playerView.getPlayer().getCurrentPosition();
+            /check if we can distpatch events to an object or whatever /
+            webView.evaluateJavascript("(function() { window.dispatchEvent(new CustomEvent('exoplayer', { detail: "+time+" })); })();", new android.webkit.ValueCallback<String>() {
+              @Override
+              public void onReceiveValue(String value) {
+
+              }
+            });
+          }
+
+        }
+      });
+
+    return playerView.getPlayer().getCurrentPosition();
+  }*/
+  /////////////////// WEVBIEW TEST ////////////////////////////////////////////
 
   @Override
   public void onNewIntent(Intent intent) {
